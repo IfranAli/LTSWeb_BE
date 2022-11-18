@@ -9,7 +9,16 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     service.findAll()
         .then(value => respondOk(res, value))
         .catch(err => respondError(res, err))
-})
+});
+
+// CREATE projects/
+router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+    const body = req.body;
+
+    service.create(body)
+        .then(value => respondOk(res, value))
+        .catch(err => respondError(res, err))
+});
 
 // GET projects/:id
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
