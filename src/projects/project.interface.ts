@@ -7,7 +7,7 @@ export interface ProjectDatabaseModel {
 }
 
 export interface ProjectModel extends IdentityInterface, ProjectDatabaseModel {
-    tasks: Tasks;
+    Tasks: Tasks;
 }
 
 export interface Projects {

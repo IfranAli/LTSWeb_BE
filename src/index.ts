@@ -7,10 +7,10 @@ import {tasksRouter} from "./tasks/tasks.router";
 
 require('dotenv').config()
 const app = express();
+app.use(cors());
 export const db = require('./database');
 
 app.use(helmet());
-app.use(cors());
 app.use(express.json());
 app.use('/api/projects', projectsRouter);
 app.use('/api/tasks', tasksRouter);

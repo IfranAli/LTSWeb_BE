@@ -6,9 +6,13 @@ const router = express.Router();
 
 // GET projects/
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
-    service.findAll()
+    service.findAll().then(async projects =>
+        Promise.all(projects.map(async project => ({
+            ...project, Tasks: await service.getTasksByProjectID(project.ID)
+        }))))
         .then(value => respondOk(res, value))
-        .catch(err => respondError(res, err))
+        .catch(err => respondError(res, err));
+
 });
 
 // CREATE projects/
@@ -24,6 +28,21 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     const id: number = parseInt(req.params.id, 10);
     service.find(id)
+        .then(async (result) => {
+            const project = result.shift()!;
+
+            return respondOk(res, {
+                ...project,
+                Tasks: await service.getTasksByProjectID(project.ID)
+            });
+        })
+        .catch(err => respondError(res, err))
+})
+
+// GET projects/:id/tasks
+router.get('/:id/tasks', async (req: Request, res: Response, next: NextFunction) => {
+    const id: number = parseInt(req.params.id, 10);
+    service.getTasksByProjectID(id)
         .then(value => respondOk(res, value))
         .catch(err => respondError(res, err))
 })

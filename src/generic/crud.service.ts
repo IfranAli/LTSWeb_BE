@@ -19,6 +19,7 @@ export abstract class CrudService<ModelType> {
     static sqlWhere = 'WHERE';
     static sqlValues = 'VALUES';
     static sqlInsertInto = 'INSERT INTO';
+    static sqlLimitOne = 'LIMIT 1';
     static sqlVar = '?'
     static sqlQuerySeparator = ', '
     tableName: string = '';
@@ -34,7 +35,7 @@ export abstract class CrudService<ModelType> {
         this.sqlSelectFrom += (' ' + this.tableName);
     }
 
-    private static async makeRequest(query: string, params: any[] = []) {
+    protected static async makeRequest(query: string, params: any[] = []) {
         let connection;
 
         try {
@@ -53,12 +54,12 @@ export abstract class CrudService<ModelType> {
         return CrudService.makeRequest(this.sqlSelectFrom);
     }
 
-    public find = async (id: number): (Promise<ModelType>) => {
-        const query = `${this.sqlSelectFrom} ${this.sqlFind}`;
+    public find = async (id: number): (Promise<ModelType[]>) => {
+        const query = `${this.sqlSelectFrom} ${this.sqlFind} ${CrudService.sqlLimitOne}`;
         return CrudService.makeRequest(query, [id]);
     }
 
-    public findMany = async (ids: number[]): (Promise<ModelType>) => {
+    public findMany = async (ids: number[]): (Promise<ModelType[]>) => {
         const query = `${this.sqlSelectFrom} ${this.sqlFindMany}`;
         return CrudService.makeRequest(query, [ids]);
     }
