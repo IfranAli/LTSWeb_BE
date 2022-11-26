@@ -1,15 +1,20 @@
 import express, {NextFunction, Request, Response} from "express";
 import {projectsService as service} from "./project.service";
 import {respondError, respondOk} from "../generic/router.util";
+import {ProjectModel} from "./project.interface";
 
 const router = express.Router();
 
 // GET projects/
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     service.findAll().then(async projects =>
-        Promise.all(projects.map(async project => ({
-            ...project, Tasks: await service.getTasksByProjectID(project.id)
-        }))))
+        Promise.all(projects.map(async (project) => {
+            const projectResult: Partial<ProjectModel> = {
+                ...project,
+                tasks: await service.getTasksByProjectID(project.id)
+            }
+            return projectResult;
+        })))
         .then(value => respondOk(res, value))
         .catch(err => respondError(res, err));
 
@@ -28,13 +33,13 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     const id: number = parseInt(req.params.id, 10);
     service.find(id)
-        .then(async (result) => {
-            const project = result.shift()!;
-
-            return respondOk(res, {
+        .then(async (resultArray) => {
+            const project = resultArray.shift()!;
+            let projectWithTasks: Partial<ProjectModel> = {
                 ...project,
-                Tasks: await service.getTasksByProjectID(project.id)
-            });
+                tasks: await service.getTasksByProjectID(project.id)
+            }
+            return respondOk(res, projectWithTasks);
         })
         .catch(err => respondError(res, err))
 })
