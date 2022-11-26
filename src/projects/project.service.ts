@@ -3,9 +3,9 @@ import {CrudService} from "../generic/crud.service";
 import {TaskModel} from "../tasks/task.interface";
 
 const safeFields: Array<keyof ProjectModel> = [
-    "ID",
-    "Title",
-    "Description"
+    "id",
+    "title",
+    "description"
 ];
 
 class ProjectsService extends CrudService<ProjectModel> {

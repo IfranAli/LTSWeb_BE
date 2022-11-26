@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     service.findAll().then(async projects =>
         Promise.all(projects.map(async project => ({
-            ...project, Tasks: await service.getTasksByProjectID(project.ID)
+            ...project, Tasks: await service.getTasksByProjectID(project.id)
         }))))
         .then(value => respondOk(res, value))
         .catch(err => respondError(res, err));
@@ -33,7 +33,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
             return respondOk(res, {
                 ...project,
-                Tasks: await service.getTasksByProjectID(project.ID)
+                Tasks: await service.getTasksByProjectID(project.id)
             });
         })
         .catch(err => respondError(res, err))

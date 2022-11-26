@@ -1,3 +1,3 @@
 export interface IdentityInterface {
-    ID: number;
+    id: number;
 }
