@@ -15,6 +15,7 @@ export interface OkPacket {
 
 export abstract class CrudService<ModelType> {
     static sqlSelect = 'SELECT';
+    static sqlDelete = 'DELETE';
     static sqlFrom = 'FROM';
     static sqlWhere = 'WHERE';
     static sqlValues = 'VALUES';
@@ -56,6 +57,11 @@ export abstract class CrudService<ModelType> {
 
     public find = async (id: number): (Promise<ModelType[]>) => {
         const query = `${this.sqlSelectFrom} ${this.sqlFind} ${CrudService.sqlLimitOne}`;
+        return CrudService.makeRequest(query, [id]);
+    }
+
+    public delete = async (id: number): (Promise<any>) => {
+        const query = `${CrudService.sqlDelete} ${CrudService.sqlFrom} ${this.tableName} ${this.sqlFind}`;
         return CrudService.makeRequest(query, [id]);
     }
 

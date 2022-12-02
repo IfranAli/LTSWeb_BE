@@ -1,6 +1,8 @@
 import express, {NextFunction, Request, Response} from "express";
-import {tasksService as service} from "./task.service";
+import {tasksService, tasksService as service} from "./task.service";
 import {respondError, respondOk} from "../generic/router.util";
+import {ResponseMessage} from "../generic/ResponseMessage.interface";
+import {OkPacket} from "../generic/crud.service";
 
 const router = express.Router();
 
@@ -16,6 +18,20 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     const id: number = parseInt(req.params.id, 10);
     service.find(id)
         .then(value => respondOk(res, value))
+        .catch(err => respondError(res, err))
+})
+
+// DELETE tasks/:id
+router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+    const id: number = parseInt(req.params.id, 10);
+    tasksService.delete(id)
+        .then((value: OkPacket) => {
+            const responseMessage: ResponseMessage = {
+                success: true,
+                message: '',
+            }
+            respondOk(res, responseMessage)
+        })
         .catch(err => respondError(res, err))
 })
 
