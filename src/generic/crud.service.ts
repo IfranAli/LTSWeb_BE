@@ -14,11 +14,13 @@ export interface OkPacket {
 }
 
 export abstract class CrudService<ModelType> {
+    // todo: refactor this mess -- unreadable
     static sqlSelect = 'SELECT';
     static sqlDelete = 'DELETE';
     static sqlFrom = 'FROM';
     static sqlWhere = 'WHERE';
     static sqlValues = 'VALUES';
+    static sqlUpdate = 'UPDATE';
     static sqlInsertInto = 'INSERT INTO';
     static sqlLimitOne = 'LIMIT 1';
     static sqlVar = '?'
@@ -71,19 +73,7 @@ export abstract class CrudService<ModelType> {
     }
 
     public create = async (modelData: KeyedObject<ModelType>) => {
-        let tableUpdateData: TableUpdateData<ModelType> = {
-            values: [],
-            columns: [],
-        };
-
-        const updateFields = (Object.keys(modelData) as Array<keyof ModelType>)
-            .filter((field: keyof ModelType) => this.safeFields.includes(field))
-            .map((field: keyof ModelType) => [field as string, modelData[field as string] as string])
-            .reduce<TableUpdateData<ModelType>>((previousValue: TableUpdateData<ModelType>, currentValue: string[]) => ({
-                columns: [...previousValue.columns, currentValue[0] as keyof ModelType],
-                values: [...previousValue.values, currentValue[1] as string],
-            }), tableUpdateData);
-
+        const updateFields = this.getUpdateFields(modelData);
         const nValues = updateFields.columns.length;
         const columns = updateFields.columns.join((CrudService.sqlQuerySeparator));
         const values = new Array(nValues).fill(CrudService.sqlVar).join(CrudService.sqlQuerySeparator);
@@ -94,5 +84,37 @@ export abstract class CrudService<ModelType> {
                 return this.find(Number(value.insertId)).then(inserted => inserted);
             })
             .catch(reason => reason);
+    }
+
+    public update = async (modelData: KeyedObject<ModelType>) => {
+        const updateFields = this.getUpdateFields(modelData);
+        const nValues = updateFields.columns.length;
+        if (nValues == 0) {
+            return this.find(Number(modelData.id)).then(model => model);
+        }
+
+        const setVars = updateFields.columns.join('=?, ') + '=?'
+        let sql = 'UPDATE ' + this.tableName + ' SET ' + setVars + ' WHERE ' + this.tableName + '.id=' + modelData.id;
+
+        return await CrudService.makeRequest(sql, updateFields.values)
+            .then((value: OkPacket) => {
+                return this.find(Number(modelData.id)).then(model => model);
+            })
+            .catch(reason => reason);
+    }
+
+    private getUpdateFields = (modelData: KeyedObject<ModelType>) => {
+        let tableUpdateData: TableUpdateData<ModelType> = {
+            values: [],
+            columns: [],
+        };
+
+        return (Object.keys(modelData) as Array<keyof ModelType>)
+            .filter((field: keyof ModelType) => this.safeFields.includes(field))
+            .map((field: keyof ModelType) => [field as string, modelData[field as string] as string])
+            .reduce<TableUpdateData<ModelType>>((previousValue: TableUpdateData<ModelType>, currentValue: string[]) => ({
+                columns: [...previousValue.columns, currentValue[0] as keyof ModelType],
+                values: [...previousValue.values, currentValue[1] as string],
+            }), tableUpdateData);
     }
 }

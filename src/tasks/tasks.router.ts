@@ -35,4 +35,15 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
         .catch(err => respondError(res, err))
 })
 
+// PUT tasks/:id
+router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
+    const body = req.body;
+    const id: number = parseInt(req.params.id, 10);
+    body.id = id;
+
+    tasksService.update(body)
+        .then(value => respondOk(res, value))
+        .catch(err => respondError(res, err))
+})
+
 export {router as tasksRouter}
