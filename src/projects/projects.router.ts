@@ -1,5 +1,5 @@
 import express, {NextFunction, Request, Response} from "express";
-import {projectsService as service} from "./project.service";
+import {projectsService, projectsService as service} from "./project.service";
 import {tasksService} from "../tasks/task.service";
 import {respondError, respondOk} from "../generic/router.util";
 import {ProjectModel} from "./project.interface";
@@ -43,6 +43,17 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
             }
             return respondOk(res, projectWithTasks);
         })
+        .catch(err => respondError(res, err))
+})
+
+// PUT projects/:id
+router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
+    const body = req.body;
+    const id: number = parseInt(req.params.id, 10);
+    body.id = id;
+
+    projectsService.update(body)
+        .then(value => respondOk(res, value))
         .catch(err => respondError(res, err))
 })
 
