@@ -4,8 +4,14 @@ import helmet from "helmet";
 import {projectsRouter} from "./projects/projects.router";
 import * as Process from "process";
 import {tasksRouter} from "./tasks/tasks.router";
+import * as dotenv from 'dotenv'
 
-require('dotenv').config()
+if (process.env && (process.env.NODE_ENV == 'dev')) {
+    dotenv.config({path: '.env.development'});
+} else {
+    dotenv.config({path: '.env'});
+}
+
 const app = express();
 app.use(cors());
 export const db = require('./database');
