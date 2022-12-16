@@ -5,10 +5,10 @@ export interface TaskDatabaseModel {
     projectId: number,
     name: string,
     content: string,
+    state: TaskState,
 }
 
 export interface TaskModel extends IdentityInterface, TaskDatabaseModel {
-    state: TaskState;
 }
 
 export interface Tasks {
