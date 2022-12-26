@@ -6,6 +6,7 @@ export interface TaskDatabaseModel {
     name: string,
     content: string,
     state: TaskState,
+    priority: number,
 }
 
 export interface TaskModel extends IdentityInterface, TaskDatabaseModel {

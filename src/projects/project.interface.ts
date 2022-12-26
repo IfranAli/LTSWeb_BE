@@ -4,7 +4,9 @@ import {IdentityInterface} from "../generic/Identity.interface";
 export interface ProjectDatabaseModel {
     title: string,
     description: string
+    code: string
     colour: string
+    priority: number
 }
 
 export interface ProjectModel extends IdentityInterface, ProjectDatabaseModel {

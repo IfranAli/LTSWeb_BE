@@ -6,6 +6,7 @@ const safeFields: Array<keyof TaskModel> = [
     "name",
     "content",
     "state",
+    "priority"
 ];
 
 class TasksService extends CrudService<TaskModel> {
