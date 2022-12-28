@@ -54,7 +54,7 @@ router.post('/login', (req: Request, res: Response, next) => {
             return next(err);
         }
         if (!user) {
-            return res.redirect('/');
+            return respondUnauthorized(res, 'Invalid login');
         }
 
         req.login(user, function (err: any) {
