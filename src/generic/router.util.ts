@@ -7,3 +7,7 @@ export const respondError = (res: Response, value: any) => {
 export const respondOk = (res: Response, value: any) => {
     return res.status(200).send(value);
 }
+
+export const respondUnauthorized = (res: Response, value: any) => {
+    return res.status(401).send(value);
+}
