@@ -41,11 +41,17 @@ export var isAuthenticated = (req: Request, res: Response, next: NextFunction) =
     respondUnauthorized(res, 'Unauthorised');
 };
 
-router.get('/', isAuthenticated, (req: Request, res: Response) =>
-    userService.findAll()
-        .then(async projects => Promise.all(projects.map(async (project) => project)))
+router.get('/', isAuthenticated, (req: Request, res: Response) => {
+    const userID = req.session.passport?.user;
+
+    if (!userID) {
+        return respondError(res, 'Could not authenticate user')
+    }
+
+    return userService.find(userID)
         .then(value => respondOk(res, value))
-        .catch(err => respondError(res, err))
+        .catch(reason => respondError(res, reason))
+    }
 );
 
 router.post('/login', (req: Request, res: Response, next) => {
