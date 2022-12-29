@@ -42,17 +42,27 @@ export var isAuthenticated = (req: Request, res: Response, next: NextFunction) =
 };
 
 router.get('/', isAuthenticated, (req: Request, res: Response) => {
-    const userID = req.session.passport?.user;
+        const userID = req.session.passport?.user;
 
-    if (!userID) {
-        return respondError(res, 'Could not authenticate user')
-    }
+        if (!userID) {
+            return respondError(res, 'Could not authenticate user')
+        }
 
-    return userService.find(userID)
-        .then(value => respondOk(res, value))
-        .catch(reason => respondError(res, reason))
+        return userService.find(userID)
+            .then(value => respondOk(res, value))
+            .catch(reason => respondError(res, reason))
     }
 );
+
+router.post('/logout', function (req: Request, res: Response, next) {
+    req.logout(function (err: any) {
+        if (err) {
+            return next(err)
+        }
+
+        return respondOk(res, {success: true});
+    });
+});
 
 router.post('/login', (req: Request, res: Response, next) => {
     passport.authenticate('local', function (err: string | null, user: UserDatabaseModel) {
