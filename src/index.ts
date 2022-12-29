@@ -7,6 +7,7 @@ import {tasksRouter} from "./tasks/tasks.router";
 import * as dotenv from 'dotenv'
 import {passport, userRouter} from "./user/user.router";
 import session, {SessionOptions} from 'express-session';
+import {financeRouter} from "./finance/finance.router";
 
 if (process.env && (process.env.NODE_ENV == 'dev')) {
     dotenv.config({path: '.env.development'});
@@ -14,17 +15,22 @@ if (process.env && (process.env.NODE_ENV == 'dev')) {
     dotenv.config({path: '.env'});
 }
 
+const ONE_DAY = 24 * 60 * 60 * 1000 // 24 hours
+
 const sessionOptions: SessionOptions = {
     secret: Process.env.SESSION_SECRET!,
     resave: false,
     saveUninitialized: false,
-    cookie: {secure: false}
+    cookie: {
+        secure: false,
+        maxAge: ONE_DAY,
+    }
 };
 
 const corsOptions: CorsOptions = {
     origin: Process.env.ORIGIN,
     credentials: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: ONE_DAY,
 }
 
 const app = express();
@@ -42,6 +48,7 @@ app.use(express.json());
 app.use('/api/projects', projectsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/user', userRouter)
+app.use('/api/finance', financeRouter)
 
 app.listen(Process.env.NODE_PORT, () => {
     console.log(`Listening on port ${Process.env.NODE_PORT}`);
