@@ -13,6 +13,14 @@ router.get('/', isAuthenticated,
             .catch(err => respondError(res, err))
 );
 
+// GET finance/category
+router.get('/category', isAuthenticated,
+    (req: Request, res: Response, next: NextFunction) =>
+        service.getCategories()
+            .then(value => respondOk(res, value))
+            .catch(err => respondError(res, err))
+);
+
 // CREATE finance/
 router.post('/', isAuthenticated,
     async (req: Request, res: Response, next: NextFunction) => {

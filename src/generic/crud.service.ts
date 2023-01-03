@@ -72,6 +72,12 @@ export abstract class CrudService<ModelType> {
         return CrudService.makeRequest(query, [ids]);
     }
 
+    public runQuery = async (sql: string, values: Array<any> = []) => {
+        return await CrudService.makeRequest(sql, values)
+            .then(value => value)
+            .catch(reason => reason)
+    }
+
     public create = async (modelData: KeyedObject<ModelType>) => {
         const updateFields = this.getUpdateFields(modelData);
         const nValues = updateFields.columns.length;

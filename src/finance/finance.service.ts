@@ -6,12 +6,16 @@ const safeFields: Array<keyof FinanceModel> = [
     "name",
     "date",
     "amount",
-    "type",
+    "categoryType",
 ];
 
 class FinanceService extends CrudService<FinanceModel> {
     constructor() {
         super('Finances', safeFields);
+    }
+
+    public getCategories() {
+        return this.runQuery('select * from Category');
     }
 }
 

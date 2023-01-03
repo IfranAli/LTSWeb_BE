@@ -5,7 +5,7 @@ export interface FinanceDatabaseModel {
     name: string,
     date: string,
     amount: number,
-    type: number,
+    categoryType: number,
 }
 
 export interface FinanceModel extends IdentityInterface, FinanceDatabaseModel {
@@ -16,7 +16,7 @@ export const FinanceModelInvalid: FinanceModel = {
     name: '',
     date: '',
     amount: 0,
-    type: 0,
+    categoryType: 0,
 }
 
 export function isValidFinance(finance: FinanceModel): boolean {
