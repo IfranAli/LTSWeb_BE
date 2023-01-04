@@ -4,6 +4,7 @@ import {tasksService} from "../tasks/task.service";
 import {respondError, respondOk} from "../generic/router.util";
 import {ProjectModel} from "./project.interface";
 import {isAuthenticated} from "../user/user.router";
+import {ResponseMessage} from "../generic/ResponseMessage.interface";
 
 const router = express.Router();
 
@@ -63,6 +64,26 @@ router.post('/:id', isAuthenticated,
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     })
+
+// DELETE projects/:id
+router.delete('/:id',
+    isAuthenticated,
+    async (req, res, next) => {
+        const id: number = parseInt(req.params.id, 10);
+
+        projectsService.delete(id)
+            .then(_ => {
+                const responseMessage: ResponseMessage = {
+                    success: true,
+                    message: '',
+                }
+                respondOk(res, responseMessage)
+            })
+            .catch(err => {
+                respondError(res, err)
+            })
+    }
+)
 
 // GET projects/:id/tasks
 router.get('/:id/tasks', isAuthenticated,
