@@ -9,6 +9,7 @@ const safeFields: Array<keyof ProjectModel> = [
     "code",
     "colour",
     "priority",
+    "enabled",
 ];
 
 class ProjectsService extends CrudService<ProjectModel> {

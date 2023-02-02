@@ -7,6 +7,7 @@ export interface ProjectDatabaseModel {
     code: string
     colour: string
     priority: number
+    enabled: boolean
 }
 
 export interface ProjectModel extends IdentityInterface, ProjectDatabaseModel {
