@@ -1,5 +1,4 @@
 import express, {NextFunction, Request, Response} from "express";
-import {projectsService, projectsService as service} from "./project.service";
 import {tasksService} from "../tasks/task.service";
 import {respondError, respondOk} from "../generic/router.util";
 import {ProjectModel} from "./project.interface";
@@ -11,7 +10,7 @@ const router = express.Router();
 // GET projects/
 router.get('/', isAuthenticated,
     (req: Request, res: Response, next: NextFunction) =>
-        service.findAll()
+        req.services.projectService.findAll()
             .then(async projects => Promise.all(projects.map(async (project) => project)))
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
@@ -22,7 +21,7 @@ router.post('/', isAuthenticated,
     async (req: Request, res: Response, next: NextFunction) => {
         const body = req.body;
 
-        service.create(body)
+        req.services.projectService.create(body)
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     });
@@ -31,12 +30,12 @@ router.post('/', isAuthenticated,
 router.get('/:id', isAuthenticated,
     async (req: Request, res: Response, next: NextFunction) => {
         const id: number = parseInt(req.params.id, 10);
-        service.find(id)
+        req.services.projectService.find(id)
             .then(async (resultArray) => {
                 const project = resultArray.shift()!;
                 let projectWithTasks: Partial<ProjectModel> = {
                     ...project,
-                    tasks: await service.getTasksByProjectID(project.id)
+                    tasks: await req.services.projectService.getTasksByProjectID(project.id)
                 }
                 return respondOk(res, projectWithTasks);
             })
@@ -49,7 +48,7 @@ router.put('/:id', isAuthenticated,
         const body = req.body;
         body.id = parseInt(req.params.id, 10);
 
-        projectsService.update(body)
+        req.services.projectService.update(body)
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     })
@@ -71,7 +70,7 @@ router.delete('/:id',
     async (req, res, next) => {
         const id: number = parseInt(req.params.id, 10);
 
-        projectsService.delete(id)
+        req.services.projectService.delete(id)
             .then(_ => {
                 const responseMessage: ResponseMessage = {
                     success: true,
@@ -89,7 +88,7 @@ router.delete('/:id',
 router.get('/:id/tasks', isAuthenticated,
     async (req: Request, res: Response, next: NextFunction) => {
         const id: number = parseInt(req.params.id, 10);
-        service.getTasksByProjectID(id)
+        req.services.projectService.getTasksByProjectID(id)
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     })

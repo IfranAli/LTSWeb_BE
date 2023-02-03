@@ -1,5 +1,6 @@
 import {CrudService} from "../generic/crud.service";
 import {TaskModel} from "./task.interface";
+import {Pool} from "mariadb";
 
 const safeFields: Array<keyof TaskModel> = [
     "projectId",
@@ -9,10 +10,8 @@ const safeFields: Array<keyof TaskModel> = [
     "priority"
 ];
 
-class TasksService extends CrudService<TaskModel> {
-    constructor() {
-        super('Tasks', safeFields);
+export class TasksService extends CrudService<TaskModel> {
+    constructor(pool: Pool) {
+        super(pool, 'Tasks', safeFields);
     }
 }
-
-export const tasksService = new TasksService();

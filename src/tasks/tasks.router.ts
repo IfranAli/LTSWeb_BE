@@ -1,5 +1,4 @@
 import express, {Request, Response} from "express";
-import {tasksService, tasksService as service} from "./task.service";
 import {respondError, respondOk} from "../generic/router.util";
 import {ResponseMessage} from "../generic/ResponseMessage.interface";
 import {OkPacket} from "../generic/crud.service";
@@ -10,7 +9,7 @@ const router = express.Router();
 // GET tasks/
 router.get('/', isAuthenticated,
     async (req: Request, res: Response) => {
-        service.findAll()
+        req.services.taskService.findAll()
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     })
@@ -19,7 +18,7 @@ router.get('/', isAuthenticated,
 router.get('/:id', isAuthenticated,
     async (req: Request, res: Response) => {
         const id: number = parseInt(req.params.id, 10);
-        service.find(id)
+        req.services.taskService.find(id)
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     })
@@ -28,7 +27,7 @@ router.get('/:id', isAuthenticated,
 router.delete('/:id', isAuthenticated,
     async (req: Request, res: Response) => {
         const id: number = parseInt(req.params.id, 10);
-        tasksService.delete(id)
+        req.services.taskService.delete(id)
             .then((value: OkPacket) => {
                 const responseMessage: ResponseMessage = {
                     success: true,
@@ -45,7 +44,7 @@ router.put('/:id', isAuthenticated,
         const body = req.body;
         body.id = parseInt(req.params.id, 10);
 
-        tasksService.update(body)
+        req.services.taskService.update(body)
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     })

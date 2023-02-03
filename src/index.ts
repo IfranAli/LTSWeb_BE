@@ -8,6 +8,10 @@ import * as dotenv from 'dotenv'
 import {passport, userRouter} from "./user/user.router";
 import session, {SessionOptions} from 'express-session';
 import {financeRouter} from "./finance/finance.router";
+import {FinanceService} from "./finance/finance.service";
+import {UserService} from "./user/user.service";
+import {ProjectsService} from "./projects/project.service";
+import {TasksService} from "./tasks/task.service";
 
 if (process.env && (process.env.NODE_ENV == 'dev')) {
     dotenv.config({path: '.env.development'});
@@ -38,6 +42,16 @@ const app = express();
 // todo: convert to import
 export const db = require('./database');
 
+export const services = async (req: any, res: any, next: any) => {
+    req.services = Object.freeze({
+        financeService: new FinanceService(db.pool),
+        userService: new UserService(db.pool),
+        projectService: new ProjectsService(db.pool),
+        taskService: new TasksService(db.pool),
+    })
+    next();
+};
+
 app.set('trust proxy', 1)
 app.use(session(sessionOptions))
 app.use(passport.initialize())
@@ -45,10 +59,11 @@ app.use(passport.session())
 app.use(cors(corsOptions));
 app.use(helmet());
 app.use(express.json());
-app.use('/api/projects', projectsRouter);
-app.use('/api/tasks', tasksRouter);
-app.use('/api/user', userRouter)
-app.use('/api/finance', financeRouter)
+
+app.use('/api/projects', services, projectsRouter);
+app.use('/api/tasks', services, tasksRouter);
+app.use('/api/user', services, userRouter)
+app.use('/api/finance', services, financeRouter)
 
 app.listen(Process.env.NODE_PORT, () => {
     console.log(`Listening on port ${Process.env.NODE_PORT}`);
