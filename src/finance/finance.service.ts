@@ -19,9 +19,9 @@ export class FinanceService extends CrudService<FinanceModel> {
         return this.runQuery('select * from Category');
     }
 
-    public getFinancesByAccountID() {
+    public getFinancesByAccountID(accountId: number, from: Date, to: Date) {
         const values = [
-            0,
+            accountId,
             '2022-01-00 00:00:00',
             '2023-00-00 00:00:00'
         ]
