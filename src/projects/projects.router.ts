@@ -1,5 +1,4 @@
 import express, {NextFunction, Request, Response} from "express";
-import {tasksService} from "../tasks/task.service";
 import {respondError, respondOk} from "../generic/router.util";
 import {ProjectModel} from "./project.interface";
 import {isAuthenticated} from "../user/user.router";
@@ -59,7 +58,7 @@ router.post('/:id', isAuthenticated,
         const body = req.body;
         const id: number = parseInt(req.params.id, 10);
 
-        tasksService.create(body)
+        req.services.taskService.create(body)
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     })

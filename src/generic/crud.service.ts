@@ -32,7 +32,7 @@ export abstract class CrudService<ModelType> {
     sqlFindMany = CrudService.sqlWhere + ' ID IN (?)';
 
     protected safeFields: Array<keyof ModelType>;
-    private readonly dbPool: Pool;
+    protected readonly dbPool: Pool;
 
     protected constructor(pool: Pool,table: string, fields: Array<keyof ModelType>) {
         this.dbPool = pool;

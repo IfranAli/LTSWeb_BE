@@ -20,6 +20,6 @@ export class ProjectsService extends CrudService<ProjectModel> {
 
     public getTasksByProjectID = async (projectID: number): (Promise<TaskModel[]>) => {
         const sql = 'SELECT * FROM Tasks WHERE ProjectID=(?)'
-        return CrudService.makeRequest(sql, [projectID]);
+        return CrudService.makeRequest(this.dbPool, sql, [projectID]);
     }
 }
