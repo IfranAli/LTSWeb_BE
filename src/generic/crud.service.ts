@@ -1,4 +1,5 @@
-import {db} from "../index";
+// import {db} from "../index";
+import {Pool} from "mariadb";
 
 export type KeyedObject<T> = { [index: string]: T };
 
@@ -31,18 +32,20 @@ export abstract class CrudService<ModelType> {
     sqlFindMany = CrudService.sqlWhere + ' ID IN (?)';
 
     protected safeFields: Array<keyof ModelType>;
+    private readonly dbPool: Pool;
 
-    protected constructor(table: string, fields: Array<keyof ModelType>) {
+    protected constructor(pool: Pool,table: string, fields: Array<keyof ModelType>) {
+        this.dbPool = pool;
         this.safeFields = fields;
         this.tableName = table;
         this.sqlSelectFrom += (' ' + this.tableName);
     }
 
-    protected static async makeRequest(query: string, params: any[] = []) {
+    protected static async makeRequest(pool: Pool, query: string, params: any[] = []) {
         let connection;
 
         try {
-            connection = await db.pool.getConnection();
+            connection = await pool.getConnection();
             return connection.query(query, params);
         } catch (err: any) {
             return err.message;
@@ -54,55 +57,55 @@ export abstract class CrudService<ModelType> {
     }
 
     public findAll = async (): (Promise<ModelType[]>) => {
-        return CrudService.makeRequest(this.sqlSelectFrom);
+        return CrudService.makeRequest(this.dbPool, this.sqlSelectFrom);
     }
 
-    public find = async (id: number): (Promise<ModelType[]>) => {
+    public find = async ( id: number): (Promise<ModelType[]>) => {
         const query = `${this.sqlSelectFrom} ${this.sqlFind} ${CrudService.sqlLimitOne}`;
-        return CrudService.makeRequest(query, [id]);
+        return CrudService.makeRequest(this.dbPool, query, [id]);
     }
 
-    public delete = async (id: number): (Promise<any>) => {
+    public delete = async ( id: number): (Promise<any>) => {
         const query = `${CrudService.sqlDelete} ${CrudService.sqlFrom} ${this.tableName} ${this.sqlFind}`;
-        return CrudService.makeRequest(query, [id]);
+        return CrudService.makeRequest(this.dbPool, query, [id]);
     }
 
-    public findMany = async (ids: number[]): (Promise<ModelType[]>) => {
+    public findMany = async ( ids: number[]): (Promise<ModelType[]>) => {
         const query = `${this.sqlSelectFrom} ${this.sqlFindMany}`;
-        return CrudService.makeRequest(query, [ids]);
+        return CrudService.makeRequest(this.dbPool, query, [ids]);
     }
 
-    public runQuery = async (sql: string, values: Array<any> = []) => {
-        return await CrudService.makeRequest(sql, values)
+    public runQuery = async ( sql: string, values: Array<any> = []) => {
+        return await CrudService.makeRequest(this.dbPool, sql, values)
             .then(value => value)
             .catch(reason => reason)
     }
 
-    public create = async (modelData: KeyedObject<ModelType>) => {
+    public create = async ( modelData: KeyedObject<ModelType>) => {
         const updateFields = this.getUpdateFields(modelData);
         const nValues = updateFields.columns.length;
         const columns = updateFields.columns.join((CrudService.sqlQuerySeparator));
         const values = new Array(nValues).fill(CrudService.sqlVar).join(CrudService.sqlQuerySeparator);
         const sql = `${CrudService.sqlInsertInto} ${this.tableName} (${columns}) ${CrudService.sqlValues} (${values})`;
 
-        return await CrudService.makeRequest(sql, updateFields.values)
+        return await CrudService.makeRequest(this.dbPool, sql, updateFields.values)
             .then((value: OkPacket) => {
-                return this.find(Number(value.insertId)).then(inserted => inserted);
+                return this.find( Number(value.insertId)).then(inserted => inserted);
             })
             .catch(reason => reason);
     }
 
-    public update = async (modelData: KeyedObject<ModelType>) => {
+    public update = async ( modelData: KeyedObject<ModelType>) => {
         const updateFields = this.getUpdateFields(modelData);
         const nValues = updateFields.columns.length;
         if (nValues == 0) {
-            return this.find(Number(modelData.id)).then(model => model);
+            return this.find( Number(modelData.id)).then(model => model);
         }
 
         const setVars = updateFields.columns.join('=?, ') + '=?'
         let sql = 'UPDATE ' + this.tableName + ' SET ' + setVars + ' WHERE ' + this.tableName + '.id=' + modelData.id;
 
-        return await CrudService.makeRequest(sql, updateFields.values)
+        return await CrudService.makeRequest(this.dbPool, sql, updateFields.values)
             .then((value: OkPacket) => {
                 return this.find(Number(modelData.id)).then(model => model);
             })

@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "NODE_ENV=dev ts-node-dev --respawn --pretty --transpile-only src/index.ts",
-    "start": "NODE_ENV=prod && ts-node --transpile-only src/index.ts"
+    "start": "NODE_ENV=prod && ts-node --transpile-only src/index.ts",
+    "deps": "npx madge --circular --extensions ts ./"
   },
   "author": "Ila",
   "license": "ISC",

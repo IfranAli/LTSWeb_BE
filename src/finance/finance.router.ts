@@ -1,22 +1,23 @@
 import express, {NextFunction, Request, Response} from "express";
 import {respondError, respondOk} from "../generic/router.util";
 import {isAuthenticated} from "../user/user.router";
-import {financeService as service} from "./finance.service";
+// import {financeService as service} from "./finance.service";
 
 const router = express.Router();
 
 // GET finance/
 router.get('/', isAuthenticated,
     (req: Request, res: Response, next: NextFunction) =>
-        service.findAll()
+        req.services.financeService
+            .findAll()
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
 );
 
 // GET finance/category
 router.get('/category', isAuthenticated,
-    (req: Request, res: Response, next: NextFunction) =>
-        service.getCategories()
+    (req, res: Response, next: NextFunction) =>
+        req.services.financeService.getCategories()
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
 );
@@ -26,7 +27,7 @@ router.post('/', isAuthenticated,
     async (req: Request, res: Response, next: NextFunction) => {
         const body = req.body;
 
-        service.create(body)
+        req.services.financeService.create(body)
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     });
@@ -35,7 +36,7 @@ router.post('/', isAuthenticated,
 router.get('/:id', isAuthenticated,
     async (req: Request, res: Response, next: NextFunction) => {
         const id: number = parseInt(req.params.id, 10);
-        service.find(id)
+        req.services.financeService.find(id)
             .then(async (resultArray) =>
                 respondOk(res, resultArray.shift()!))
             .catch(err => respondError(res, err))
@@ -47,7 +48,7 @@ router.put('/:id', isAuthenticated,
         const body = req.body;
         body.id = parseInt(req.params.id, 10);
 
-        service.update(body)
+        req.services.financeService.update(body)
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     })
@@ -59,7 +60,7 @@ router.post('/:id', isAuthenticated,
         const id: number = parseInt(req.params.id, 10);
         body.id = parseInt(req.params.id, 10);
 
-        service.create(body)
+        req.services.financeService.create(body)
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     })

@@ -1,6 +1,7 @@
 import {ProjectModel} from "./project.interface";
 import {CrudService} from "../generic/crud.service";
 import {TaskModel} from "../tasks/task.interface";
+import {Pool} from "mariadb";
 
 const safeFields: Array<keyof ProjectModel> = [
     "id",
@@ -9,11 +10,12 @@ const safeFields: Array<keyof ProjectModel> = [
     "code",
     "colour",
     "priority",
+    "enabled",
 ];
 
-class ProjectsService extends CrudService<ProjectModel> {
-    constructor() {
-        super('Projects', safeFields);
+export class ProjectsService extends CrudService<ProjectModel> {
+    constructor(pool: Pool) {
+        super(pool, 'Projects', safeFields);
     }
 
     public getTasksByProjectID = async (projectID: number): (Promise<TaskModel[]>) => {
@@ -21,5 +23,3 @@ class ProjectsService extends CrudService<ProjectModel> {
         return CrudService.makeRequest(sql, [projectID]);
     }
 }
-
-export const projectsService = new ProjectsService();

@@ -1,5 +1,4 @@
 import express, {NextFunction, Request, Response} from "express";
-import {userService} from "./user.service";
 import {isValidUser, UserDatabaseModel} from "./user.interface";
 import {respondError, respondOk, respondUnauthorized} from "../generic/router.util";
 
@@ -17,12 +16,12 @@ passport.deserializeUser(function (user: UserDatabaseModel, done: Function) {
     });
 })
 
-passport.use(new LocalStrategy(async function verify(username: string, password: string, done: any) {
+passport.use(new LocalStrategy({passReqToCallback: true}, async function verify(req:Request, username: string, password: string, done: any) {
     if (username.length == 0 || password.length == 0) {
         return done(null, false);
     }
 
-    const user = await userService.findUserByUserName(username);
+    const user = await req.services.userService.findUserByUserName(username);
     const ERR_MSG = 'Invalid username or password.';
     const err = {message: ERR_MSG};
 
@@ -48,7 +47,7 @@ router.get('/', isAuthenticated, (req: Request, res: Response) => {
             return respondError(res, 'Could not authenticate user')
         }
 
-        return userService.find(userID)
+        return req.services.userService.find(userID)
             .then(value => respondOk(res, value))
             .catch(reason => respondError(res, reason))
     }
