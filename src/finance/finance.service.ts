@@ -1,6 +1,7 @@
 import {CrudService} from "../generic/crud.service";
-import {FinanceModel} from "./finance.interface";
+import {FinanceCategoryModel, FinanceModel} from "./finance.interface";
 import {Pool} from "mariadb";
+import {dateToString} from "./finance.util";
 
 const safeFields: Array<keyof FinanceModel> = [
     "id",
@@ -15,15 +16,15 @@ export class FinanceService extends CrudService<FinanceModel> {
         super(pool, 'Finances', safeFields);
     }
 
-    public getCategories() {
+    public getCategories(): Promise<FinanceCategoryModel[]> {
         return this.runQuery('select * from Category');
     }
 
-    public getFinancesByAccountID(accountId: number, from: Date, to: Date) {
+    public getFinancesByAccountID(accountId: number, from: Date, to: Date): Promise<FinanceModel[]> {
         const values = [
             accountId,
-            '2022-01-00 00:00:00',
-            '2023-00-00 00:00:00'
+            dateToString(from),
+            dateToString(to),
         ]
 
         const query = `
@@ -34,6 +35,17 @@ export class FinanceService extends CrudService<FinanceModel> {
               and Finances.date < (?)
             order by Finances.date asc`
 
-        return this.runQuery(query, values);
+        return this.runQuery(query, values).then((rows: []) => {
+
+            return rows.map((row: any) => {
+                const model: FinanceModel = {
+                    ...row,
+                    date: dateToString(new Date(row.date)),
+                    amount: (parseFloat(row.amount) ?? 0),
+                }
+
+                return model;
+            });
+        })
     }
 }

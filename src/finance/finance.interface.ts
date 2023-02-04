@@ -22,3 +22,7 @@ export const FinanceModelInvalid: FinanceModel = {
 export function isValidFinance(finance: FinanceModel): boolean {
     return finance.id >= 0
 }
+
+export interface FinanceCategoryModel extends IdentityInterface {
+    type: string
+}
