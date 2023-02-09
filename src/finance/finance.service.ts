@@ -5,6 +5,7 @@ import {dateToString} from "./finance.util";
 
 const safeFields: Array<keyof FinanceModel> = [
     "id",
+    "accountId",
     "name",
     "date",
     "amount",

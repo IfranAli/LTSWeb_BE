@@ -1,4 +1,4 @@
-import {Pool} from "mariadb";
+import {Pool, SqlError} from "mariadb";
 
 export type KeyedObject<T> = { [index: string]: T };
 
@@ -11,6 +11,11 @@ export interface OkPacket {
     affectedRows: number,
     insertId: bigint,
     warningStatus: boolean,
+}
+
+export interface IResult<T> {
+    data: T[],
+    errors: string[]
 }
 
 export abstract class CrudService<ModelType> {
@@ -85,6 +90,15 @@ export abstract class CrudService<ModelType> {
             .catch(reason => reason)
     }
 
+    public createMany = async (modelData: KeyedObject<ModelType>[]): Promise<IResult<ModelType>> => {
+        const results = await Promise.all(modelData.map(data => this.create(data)).map(p => p.catch(e => e)));
+
+        return {
+            data: results.filter(result => !(result instanceof SqlError)),
+            errors: results.filter(result => (result instanceof SqlError)).map(value => value.text)
+        }
+    }
+
     public create = async (modelData: KeyedObject<ModelType>) => {
         const updateFields = this.getUpdateFields(modelData);
         const nValues = updateFields.columns.length;
@@ -96,7 +110,7 @@ export abstract class CrudService<ModelType> {
             .then((value: OkPacket) => {
                 return this.find(Number(value.insertId)).then(inserted => inserted);
             })
-            .catch(reason => reason);
+            .catch((reason: SqlError) => Promise.reject(reason));
     }
 
     public update = async (modelData: KeyedObject<ModelType>) => {

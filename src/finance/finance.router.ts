@@ -29,6 +29,7 @@ router.get('/summary/:id', isAuthenticated,
         const to = new Date(req.query.to as string ?? '');
         const accountId = req.query.accountId as unknown as number ?? null;
 
+        // todo: grab accountId from route param.
         if (!(accountId && isValidDateObject(from) && isValidDateObject(to))) {
             return respondError(res, 'missing params');
         }
@@ -47,7 +48,10 @@ router.post('/', isAuthenticated,
     async (req: Request, res: Response, next: NextFunction) => {
         const body = req.body;
 
-        req.services.financeService.create(body)
+        (Array.isArray(body)
+                ? req.services.financeService.createMany(body)
+                : req.services.financeService.create(body)
+        )
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
     });
