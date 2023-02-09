@@ -18,6 +18,8 @@ export interface IResult<T> {
     errors: string[]
 }
 
+type ErrorResponse = { errorMessage: string };
+
 export abstract class CrudService<ModelType> {
     // todo: refactor this mess -- unreadable
     static sqlSelect = 'SELECT';
@@ -43,6 +45,10 @@ export abstract class CrudService<ModelType> {
         this.safeFields = fields;
         this.tableName = table;
         this.sqlSelectFrom += (' ' + this.tableName);
+    }
+
+    protected static sqlErrorToErrorMessage = (error: SqlError): ErrorResponse => {
+        return {errorMessage: error.text ?? error.message}
     }
 
     protected static async makeRequest(pool: Pool, query: string, params: any[] = []) {
@@ -93,13 +99,14 @@ export abstract class CrudService<ModelType> {
     public createMany = async (modelData: KeyedObject<ModelType>[]): Promise<IResult<ModelType>> => {
         const results = await Promise.all(modelData.map(data => this.create(data)).map(p => p.catch(e => e)));
 
+        const data = results.filter(result => !(result instanceof SqlError));
         return {
-            data: results.filter(result => !(result instanceof SqlError)),
-            errors: results.filter(result => (result instanceof SqlError)).map(value => value.text)
+            data: data.flatMap(a => a),
+            errors: results.filter(result => (result instanceof SqlError))
         }
     }
 
-    public create = async (modelData: KeyedObject<ModelType>) => {
+    public create = async (modelData: KeyedObject<ModelType>): Promise<ModelType[]> => {
         const updateFields = this.getUpdateFields(modelData);
         const nValues = updateFields.columns.length;
         const columns = updateFields.columns.join((CrudService.sqlQuerySeparator));
@@ -110,7 +117,7 @@ export abstract class CrudService<ModelType> {
             .then((value: OkPacket) => {
                 return this.find(Number(value.insertId)).then(inserted => inserted);
             })
-            .catch((reason: SqlError) => Promise.reject(reason));
+            .catch((reason: SqlError) => Promise.reject(CrudService.sqlErrorToErrorMessage(reason)));
     }
 
     public update = async (modelData: KeyedObject<ModelType>) => {
