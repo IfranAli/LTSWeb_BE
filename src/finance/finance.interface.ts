@@ -26,5 +26,6 @@ export function isValidFinance(finance: FinanceModel): boolean {
 }
 
 export interface FinanceCategoryModel extends IdentityInterface {
-    type: string
+    type: string,
+    colour: string,
 }

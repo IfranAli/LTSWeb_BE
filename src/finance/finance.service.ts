@@ -32,8 +32,8 @@ export class FinanceService extends CrudService<FinanceModel> {
             select *
             from ltswebdb.Finances
             where Finances.accountId = (?)
-              and Finances.date > (?)
-              and Finances.date < (?)
+              and Finances.date >= (?)
+              and Finances.date <= (?)
             order by Finances.date asc`
 
         return this.runQuery(query, values).then((rows: []) => {

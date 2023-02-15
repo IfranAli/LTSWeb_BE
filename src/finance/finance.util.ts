@@ -43,12 +43,7 @@ export const getFinanceSummary = (items: FinanceModel[], categories: FinanceCate
         const idx = parseInt(key);
         const sum = byCategories[idx].reduce((p, c) => p + c.amount, 0)
         const categoryName = categoryNameMap[idx];
-        const items: Partial<FinanceModel>[] = byCategories[idx].map(i => {
-            return {
-                name: i.name,
-                value: i.amount
-            }
-        })
+        const items: Partial<FinanceModel>[] = byCategories[idx]
 
         return {
             total: sum.toFixed(2),
