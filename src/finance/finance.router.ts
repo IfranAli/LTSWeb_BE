@@ -2,6 +2,7 @@ import express, {NextFunction, Request, Response} from "express";
 import {respondError, respondOk} from "../generic/router.util";
 import {isAuthenticated} from "../user/user.router";
 import {getFinanceSummary, isValidDateObject} from "./finance.util";
+import {FinanceDatabaseModel} from "./finance.interface";
 
 const router = express.Router();
 
@@ -48,12 +49,40 @@ router.post('/', isAuthenticated,
     async (req: Request, res: Response, next: NextFunction) => {
         const body = req.body;
 
-        (Array.isArray(body)
-                ? req.services.financeService.createMany(body)
-                : req.services.financeService.create(body)
-        )
-            .then(value => respondOk(res, value))
-            .catch(err => respondError(res, err))
+        const financeModelsFn = async (accum: Promise<Partial<FinanceDatabaseModel>[]>, value: Partial<FinanceDatabaseModel>) => {
+            const arr = await Promise.resolve(accum);
+
+            if ((!value.categoryType || value.categoryType == 0) && (value.name?.length ?? 0 > 0)) {
+                const matchCategory = await req.services.financeService.matchCategory(0, value.name ?? '')
+                const newCategory = matchCategory.pop()?.category.id ?? value.categoryType;
+
+                if (matchCategory.length > 0) {
+                    return [...arr, {...value, categoryType: newCategory}]
+                }
+            }
+
+            return [...arr, value]
+        };
+
+        if (Array.isArray(body)) {
+            const financeModels = await body.reduce<Promise<Partial<FinanceDatabaseModel>[]>>((a, b) => {
+                return financeModelsFn(a, b)
+            }, Promise.resolve([]));
+
+
+            return req.services.financeService.createMany(financeModels as any)
+                .then(value => respondOk(res, value))
+                .catch(err => respondError(res, err))
+        } else {
+            const financeModels = await [body].reduce<Promise<Partial<FinanceDatabaseModel>[]>>((a, b) => {
+                return financeModelsFn(a, b)
+            }, Promise.resolve([]));
+
+
+            return req.services.financeService.create(financeModels.pop() as any)
+                .then(value => respondOk(res, value))
+                .catch(err => respondError(res, err))
+        }
     });
 
 // GET finance/:id
