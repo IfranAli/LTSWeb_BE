@@ -96,6 +96,16 @@ export abstract class CrudService<ModelType> {
             .catch(reason => reason)
     }
 
+    public updateMany = async (modelData: KeyedObject<ModelType>[]): Promise<IResult<ModelType>> => {
+        const results = await Promise.all(modelData.map(data => this.update(data)).map(p => p.catch(e => e)));
+
+        const data = results.filter(result => !(result instanceof SqlError));
+        return {
+            data: data.flatMap(a => a),
+            errors: results.filter(result => (result instanceof SqlError))
+        }
+    }
+
     public createMany = async (modelData: KeyedObject<ModelType>[]): Promise<IResult<ModelType>> => {
         const results = await Promise.all(modelData.map(data => this.create(data)).map(p => p.catch(e => e)));
 
@@ -134,7 +144,9 @@ export abstract class CrudService<ModelType> {
             .then((value: OkPacket) => {
                 return this.find(Number(modelData.id)).then(model => model);
             })
-            .catch(reason => reason);
+            .catch((reason: SqlError) => {
+                Promise.reject(CrudService.sqlErrorToErrorMessage(reason))
+            });
     }
 
     private getUpdateFields = (modelData: KeyedObject<ModelType>) => {
