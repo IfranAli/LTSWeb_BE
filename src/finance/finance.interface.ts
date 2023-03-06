@@ -29,3 +29,8 @@ export interface FinanceCategoryModel extends IdentityInterface {
     type: string,
     colour: string,
 }
+
+export interface FinanceCategoryMatchResult {
+    category: FinanceCategoryModel;
+    matches: number;
+}
