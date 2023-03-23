@@ -145,7 +145,7 @@ export abstract class CrudService<ModelType> {
                 return this.find(Number(modelData.id)).then(model => model);
             })
             .catch((reason: SqlError) => {
-                Promise.reject(CrudService.sqlErrorToErrorMessage(reason))
+                return Promise.reject(CrudService.sqlErrorToErrorMessage(reason))
             });
     }
 
