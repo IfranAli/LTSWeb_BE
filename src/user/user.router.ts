@@ -1,5 +1,5 @@
 import express, {NextFunction, Request, Response} from "express";
-import {UserDatabaseModel, UserModel} from "./user.interface";
+import {isValidUser, UserDatabaseModel, UserModel} from "./user.interface";
 import {respondError, respondOk, respondUnauthorized} from "../generic/router.util";
 import {getToken, passport} from "../passport-config";
 
@@ -12,7 +12,7 @@ export var isAuthenticated = async (req: Request, res: Response, next: NextFunct
     if (token) {
         const user: UserModel = await req.services.userService.findUserByToken(token)
 
-        if (user) {
+        if (isValidUser(user)) {
             req.userData = user;
             return next();
         }
