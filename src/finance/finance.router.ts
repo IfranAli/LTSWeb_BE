@@ -3,6 +3,7 @@ import {respondError, respondOk} from "../generic/router.util";
 import {isAuthenticated} from "../user/user.router";
 import {getFinanceSummary, isValidDateObject} from "./finance.util";
 import {FinanceDatabaseModel} from "./finance.interface";
+import {ResponseMessage} from "../generic/ResponseMessage.interface";
 
 const router = express.Router();
 
@@ -13,6 +14,23 @@ router.get('/', isAuthenticated,
             .findAll()
             .then(value => respondOk(res, value))
             .catch(err => respondError(res, err))
+);
+
+// DELETE finance/:id
+router.delete('/:id', isAuthenticated,
+    async (req: Request, res: Response, next: NextFunction) => {
+        const id: number = parseInt(req.params.id, 10);
+        req.services.financeService
+            .delete(id)
+            .then(_ => {
+                const responseMessage: ResponseMessage = {
+                    success: true,
+                    message: '',
+                }
+                respondOk(res, responseMessage)
+            })
+            .catch(err => respondError(res, err))
+    }
 );
 
 // GET finance/category
