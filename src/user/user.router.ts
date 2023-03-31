@@ -6,9 +6,16 @@ import {getToken, passport} from "../passport-config";
 const router = express.Router()
 
 
-export var isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
-    if (req.isAuthenticated()) {
-        return next();
+export var isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
+    const token = req.header('token');
+
+    if (token) {
+        const user: UserModel = await req.services.userService.findUserByToken(token)
+
+        if (user) {
+            req.userData = user;
+            return next();
+        }
     }
 
     respondUnauthorized(res, 'Unauthorised');
