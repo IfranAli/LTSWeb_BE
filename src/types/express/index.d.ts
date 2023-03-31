@@ -1,4 +1,4 @@
-import {UserDatabaseModel} from "../../user/user.interface";
+import {UserDatabaseModel, UserModel} from "../../user/user.interface";
 import {FinanceService} from "../../finance/finance.service";
 import {UserService} from "../../user/user.service";
 import {ProjectsService} from "../../projects/project.service";
@@ -13,6 +13,8 @@ declare global {
                 projectService: ProjectsService,
                 taskService: TasksService,
             }
+
+            userData: UserModel | null
 
             login(user: UserDatabaseModel, callback: Function)
 

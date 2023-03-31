@@ -5,13 +5,14 @@ import {projectsRouter} from "./projects/projects.router";
 import * as Process from "process";
 import {tasksRouter} from "./tasks/tasks.router";
 import * as dotenv from 'dotenv'
-import {passport, userRouter} from "./user/user.router";
+import {userRouter} from "./user/user.router";
 import session, {SessionOptions} from 'express-session';
 import {financeRouter} from "./finance/finance.router";
 import {FinanceService} from "./finance/finance.service";
 import {UserService} from "./user/user.service";
 import {ProjectsService} from "./projects/project.service";
 import {TasksService} from "./tasks/task.service";
+import {passport} from "./passport-config";
 
 if (process.env && (process.env.NODE_ENV == 'dev')) {
     dotenv.config({path: '.env.development'});
@@ -55,7 +56,7 @@ export const services = async (req: any, res: any, next: any) => {
 app.set('trust proxy', 1)
 app.use(session(sessionOptions))
 app.use(passport.initialize())
-app.use(passport.session())
+// app.use(passport.session())
 app.use(cors(corsOptions));
 app.use(helmet());
 app.use(express.json());
