@@ -74,7 +74,7 @@ router.post('/', isAuthenticated,
                 const matchCategory = await req.services.financeService.matchCategory(0, value.name ?? '')
                 const newCategory = matchCategory.pop()?.category.id ?? value.categoryType;
 
-                if (matchCategory.length > 0) {
+                if (newCategory != 0) {
                     return [...arr, {...value, categoryType: newCategory}]
                 }
             }
