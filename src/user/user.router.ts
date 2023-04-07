@@ -1,5 +1,5 @@
 import express, {NextFunction, Request, Response} from "express";
-import {isValidUser, UserDatabaseModel, UserModel} from "./user.interface";
+import {isValidUser, UserDatabaseModel, UserModel, UserModelPublic} from "./user.interface";
 import {respondError, respondOk, respondUnauthorized} from "../generic/router.util";
 import {getToken, passport} from "../passport-config";
 
@@ -29,7 +29,10 @@ router.get('/', isAuthenticated, (req: Request, res: Response) => {
         }
 
         return req.services.userService.find(userID)
-            .then(value => respondOk(res, value))
+            .then(async (value) => {
+                const userModel = await getUserInformation(req, value[0].token).then(value => value);
+                respondOk(res, userModel)
+            })
             .catch(reason => respondError(res, reason))
     }
 );
@@ -44,6 +47,22 @@ router.post('/logout', function (req: Request, res: Response, next) {
     });
 });
 
+const getUserInformation = async (req: Request, token: String): Promise<UserModelPublic> => {
+    return req.services.userService.findUserByToken(token).then(async user => {
+        const accountId = await req.services.financeService.getAccountsByUserId(user.id).then(value => value[0] ?? null);
+
+        const userModel: UserModelPublic = {
+            id: user.id,
+            name: user.username,
+            accountId: accountId,
+            token: user.token
+        };
+
+        return userModel;
+    }).catch(reason => {
+        return Promise.reject('Not implemented yet');
+    });
+}
 
 router.post('/login', (req: Request, res: Response, next) => {
     passport.authenticate('local', function (err: string | null, user: UserDatabaseModel) {
@@ -62,8 +81,9 @@ router.post('/login', (req: Request, res: Response, next) => {
             const userData: any = {id: user.id, token: token}
             await req.services.userService.update(userData);
 
+            const userModel = await getUserInformation(req, token).then(value => value);
             return res.send({
-                user,
+                userModel,
                 token
             });
         });

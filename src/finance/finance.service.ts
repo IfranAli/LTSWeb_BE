@@ -22,6 +22,24 @@ export class FinanceService extends CrudService<FinanceModel> {
         super(pool, 'Finances', safeFields);
     }
 
+    public getAccountsByUserId = (userId: number): Promise<number[]> => {
+        const values = [
+            userId,
+        ]
+
+        const query = `
+            select id
+            from Accounts
+            where userId = (?);
+        `
+
+        return this.runQuery(query, values).then((rows: []) => {
+            return rows.map((row: any) => {
+                return row.id;
+            });
+        })
+    }
+
     public findCategoryByType = (type: string): Promise<FinanceCategoryModel[]> => {
         const values = [
             ['%', type, '%'].join(''),

@@ -7,6 +7,13 @@ export interface UserDatabaseModel {
     token: string,
 }
 
+export interface UserModelPublic {
+    id: number,
+    token: string,
+    name: string,
+    accountId: number,
+}
+
 export interface UserModel extends IdentityInterface, UserDatabaseModel {
 }
 
