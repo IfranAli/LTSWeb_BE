@@ -6,7 +6,12 @@ export const passport = require('passport');
 
 const jwt = require('jsonwebtoken');
 export const getToken = (req: Request, user: UserDatabaseModel): string => {
-    const token = jwt.sign(user, Process.env.JWT_KEY)
+    const signObject = {
+        id: user.id,
+        username: user.username,
+        password: user.password,
+    }
+    const token = jwt.sign(signObject, Process.env.JWT_KEY)
     return token
 }
 
