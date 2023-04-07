@@ -1,54 +1,38 @@
 import express, {NextFunction, Request, Response} from "express";
-import {isValidUser, UserDatabaseModel} from "./user.interface";
+import {isValidUser, UserDatabaseModel, UserModel, UserModelPublic} from "./user.interface";
 import {respondError, respondOk, respondUnauthorized} from "../generic/router.util";
+import {getToken, passport} from "../passport-config";
 
 const router = express.Router()
-export const passport = require('passport');
-const LocalStrategy = require('passport-local').Strategy;
-passport.serializeUser(function (user: UserDatabaseModel, done: Function) {
-    done(null, user.id);
-})
 
-passport.deserializeUser(function (user: UserDatabaseModel, done: Function) {
-    done(null, {
-        username: user.username,
-        password: user.password
-    });
-})
 
-passport.use(new LocalStrategy({passReqToCallback: true}, async function verify(req:Request, username: string, password: string, done: any) {
-    if (username.length == 0 || password.length == 0) {
-        return done(null, false);
-    }
+export var isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
+    const token = req.header('token');
 
-    const user = await req.services.userService.findUserByUserName(username);
-    const ERR_MSG = 'Invalid username or password.';
-    const err = {message: ERR_MSG};
+    if (token) {
+        const user: UserModel = await req.services.userService.findUserByToken(token)
 
-    if (!isValidUser(user) || (user.password != password)) {
-        return done(null, false, err);
-    }
-
-    return done(null, user);
-}));
-
-export var isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
-    if (req.isAuthenticated()) {
-        return next();
+        if (isValidUser(user)) {
+            req.userData = user;
+            return next();
+        }
     }
 
     respondUnauthorized(res, 'Unauthorised');
 };
 
 router.get('/', isAuthenticated, (req: Request, res: Response) => {
-        const userID = req.session.passport?.user;
+        const userID = req.userData?.id ?? null;
 
         if (!userID) {
             return respondError(res, 'Could not authenticate user')
         }
 
         return req.services.userService.find(userID)
-            .then(value => respondOk(res, value))
+            .then(async (value) => {
+                const userModel = await getUserInformation(req, value[0].token).then(value => value);
+                respondOk(res, userModel)
+            })
             .catch(reason => respondError(res, reason))
     }
 );
@@ -63,6 +47,23 @@ router.post('/logout', function (req: Request, res: Response, next) {
     });
 });
 
+const getUserInformation = async (req: Request, token: String): Promise<UserModelPublic> => {
+    return req.services.userService.findUserByToken(token).then(async user => {
+        const accountId = await req.services.financeService.getAccountsByUserId(user.id).then(value => value[0] ?? null);
+
+        const userModel: UserModelPublic = {
+            id: user.id,
+            name: user.username,
+            accountId: accountId,
+            token: user.token
+        };
+
+        return userModel;
+    }).catch(reason => {
+        return Promise.reject('Not implemented yet');
+    });
+}
+
 router.post('/login', (req: Request, res: Response, next) => {
     passport.authenticate('local', function (err: string | null, user: UserDatabaseModel) {
         if (err) {
@@ -72,14 +73,23 @@ router.post('/login', (req: Request, res: Response, next) => {
             return respondUnauthorized(res, 'Invalid login');
         }
 
-        req.login(user, function (err: any) {
+        req.login(user, async function (err: any) {
             if (err) {
                 return next(err);
             }
-            return res.send(user);
+            const token = getToken(req, user);
+            const userData: any = {id: user.id, token: token}
+            await req.services.userService.update(userData);
+
+            const userModel = await getUserInformation(req, token).then(value => value);
+            return res.send({
+                userModel,
+                token
+            });
         });
 
     })(req, res, next);
+    // return passport.authenticate('jwt', {session: false});
 });
 
 export {

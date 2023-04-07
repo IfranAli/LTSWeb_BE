@@ -1,5 +1,4 @@
-// import {db} from "../index";
-import {Pool} from "mariadb";
+import {Pool, SqlError} from "mariadb";
 
 export type KeyedObject<T> = { [index: string]: T };
 
@@ -13,6 +12,13 @@ export interface OkPacket {
     insertId: bigint,
     warningStatus: boolean,
 }
+
+export interface IResult<T> {
+    data: T[],
+    errors: string[]
+}
+
+type ErrorResponse = { errorMessage: string };
 
 export abstract class CrudService<ModelType> {
     // todo: refactor this mess -- unreadable
@@ -32,13 +38,17 @@ export abstract class CrudService<ModelType> {
     sqlFindMany = CrudService.sqlWhere + ' ID IN (?)';
 
     protected safeFields: Array<keyof ModelType>;
-    private readonly dbPool: Pool;
+    protected readonly dbPool: Pool;
 
-    protected constructor(pool: Pool,table: string, fields: Array<keyof ModelType>) {
+    protected constructor(pool: Pool, table: string, fields: Array<keyof ModelType>) {
         this.dbPool = pool;
         this.safeFields = fields;
         this.tableName = table;
         this.sqlSelectFrom += (' ' + this.tableName);
+    }
+
+    protected static sqlErrorToErrorMessage = (error: SqlError): ErrorResponse => {
+        return {errorMessage: error.text ?? error.message}
     }
 
     protected static async makeRequest(pool: Pool, query: string, params: any[] = []) {
@@ -60,28 +70,53 @@ export abstract class CrudService<ModelType> {
         return CrudService.makeRequest(this.dbPool, this.sqlSelectFrom);
     }
 
-    public find = async ( id: number): (Promise<ModelType[]>) => {
+    public find = async (id: number): (Promise<ModelType[]>) => {
+        // todo: implement param checks.
+        if (isNaN(id)) {
+            throw new Error('Id is required.').message
+        }
+
         const query = `${this.sqlSelectFrom} ${this.sqlFind} ${CrudService.sqlLimitOne}`;
         return CrudService.makeRequest(this.dbPool, query, [id]);
     }
 
-    public delete = async ( id: number): (Promise<any>) => {
+    public delete = async (id: number): (Promise<any>) => {
         const query = `${CrudService.sqlDelete} ${CrudService.sqlFrom} ${this.tableName} ${this.sqlFind}`;
         return CrudService.makeRequest(this.dbPool, query, [id]);
     }
 
-    public findMany = async ( ids: number[]): (Promise<ModelType[]>) => {
+    public findMany = async (ids: number[]): (Promise<ModelType[]>) => {
         const query = `${this.sqlSelectFrom} ${this.sqlFindMany}`;
         return CrudService.makeRequest(this.dbPool, query, [ids]);
     }
 
-    public runQuery = async ( sql: string, values: Array<any> = []) => {
+    public runQuery = async (sql: string, values: Array<any> = []) => {
         return await CrudService.makeRequest(this.dbPool, sql, values)
             .then(value => value)
             .catch(reason => reason)
     }
 
-    public create = async ( modelData: KeyedObject<ModelType>) => {
+    public updateMany = async (modelData: KeyedObject<ModelType>[]): Promise<IResult<ModelType>> => {
+        const results = await Promise.all(modelData.map(data => this.update(data)).map(p => p.catch(e => e)));
+
+        const data = results.filter(result => !(result instanceof SqlError));
+        return {
+            data: data.flatMap(a => a),
+            errors: results.filter(result => (result instanceof SqlError))
+        }
+    }
+
+    public createMany = async (modelData: KeyedObject<ModelType>[]): Promise<IResult<ModelType>> => {
+        const results = await Promise.all(modelData.map(data => this.create(data)).map(p => p.catch(e => e)));
+
+        const data = results.filter(result => !(result instanceof SqlError));
+        return {
+            data: data.flatMap(a => a),
+            errors: results.filter(result => (result instanceof SqlError))
+        }
+    }
+
+    public create = async (modelData: KeyedObject<ModelType>): Promise<ModelType[]> => {
         const updateFields = this.getUpdateFields(modelData);
         const nValues = updateFields.columns.length;
         const columns = updateFields.columns.join((CrudService.sqlQuerySeparator));
@@ -90,16 +125,16 @@ export abstract class CrudService<ModelType> {
 
         return await CrudService.makeRequest(this.dbPool, sql, updateFields.values)
             .then((value: OkPacket) => {
-                return this.find( Number(value.insertId)).then(inserted => inserted);
+                return this.find(Number(value.insertId)).then(inserted => inserted);
             })
-            .catch(reason => reason);
+            .catch((reason: SqlError) => Promise.reject(CrudService.sqlErrorToErrorMessage(reason)));
     }
 
-    public update = async ( modelData: KeyedObject<ModelType>) => {
+    public update = async (modelData: KeyedObject<ModelType>) => {
         const updateFields = this.getUpdateFields(modelData);
         const nValues = updateFields.columns.length;
         if (nValues == 0) {
-            return this.find( Number(modelData.id)).then(model => model);
+            return this.find(Number(modelData.id)).then(model => model);
         }
 
         const setVars = updateFields.columns.join('=?, ') + '=?'
@@ -109,7 +144,9 @@ export abstract class CrudService<ModelType> {
             .then((value: OkPacket) => {
                 return this.find(Number(modelData.id)).then(model => model);
             })
-            .catch(reason => reason);
+            .catch((reason: SqlError) => {
+                return Promise.reject(CrudService.sqlErrorToErrorMessage(reason))
+            });
     }
 
     private getUpdateFields = (modelData: KeyedObject<ModelType>) => {
