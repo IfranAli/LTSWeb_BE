@@ -21,7 +21,7 @@ export var isAuthenticated = async (
   res: Response,
   next: NextFunction
 ) => {
-  const token = req.header("token");
+  const token = req.header("Authorization");
 
   if (token) {
     const userRepository = AppDataSource.getRepository(User);
@@ -46,8 +46,9 @@ export var isAuthenticated = async (
       .catch((reason) => {
         respondUnauthorized(res, "Unauthorised");
       });
+  } else {
+    respondUnauthorized(res, "Unauthorised - No token provided");
   }
-
 };
 
 router.get("/", isAuthenticated, (req: Request, res: Response) => {
@@ -107,13 +108,20 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 router.post("/logout", function (req: Request, res: Response, next) {
-  req.logout(function (err: any) {
-    if (err) {
-      return next(err);
-    }
+  // Remove token from database
+  const userRepository = AppDataSource.getRepository(User);
 
-    return respondOk(res, { success: true });
-  });
+  userRepository
+    .findOneByOrFail({ token: req.body.token })
+    .then((value) => {
+      value.token = "";
+      userRepository.save(value);
+
+      return respondOk(res, { success: true });
+    })
+    .catch((reason) => {
+      return respondError(res, { success: false, reason: reason });
+    });
 });
 
 const getUserInformation = async (
@@ -141,49 +149,71 @@ const getUserInformation = async (
     });
 };
 
+/**
+ * Create token data.
+ * @param user
+ * @returns token
+ */
+function generateToken(user: User) {
+  const jwt = require("jsonwebtoken");
+  const tokenOptions = {
+    expiresIn: "1h", // Set the expiration time for the token
+  };
+  const signObject = {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+  };
+  return jwt.sign(signObject, process.env.JWT_KEY, tokenOptions);
+}
+
 router.post("/login", (req: Request, res: Response, next) => {
-  passport.authenticate(
-    "local",
-    function (err: string | null, user: UserDatabaseModel) {
-      if (err) {
-        return next(err);
-      }
-      if (!user) {
-        return respondUnauthorized(res, "Invalid login");
-      }
+  const userRepository = AppDataSource.getRepository(User);
 
-      req.login(user, async function (err: any) {
-        if (err) {
-          return next(err);
-        }
-        const userRepository = AppDataSource.getRepository(User);
+  const body = req.body;
+  const errors = [];
 
-        const newToken = getToken(req, user);
-        const userModel = userRepository
-          .findOneByOrFail({ id: user.id })
-          .then((user) => {
-            user.token = newToken;
+  if (!body.username) {
+    errors.push("Username is required");
+  }
 
-            userRepository.save(user).then((value) => {
-              const userData = {
-                id: value.id,
-                username: value.username,
-                password: "",
-              };
+  if (!body.password) {
+    errors.push("Password is required");
+  }
 
-              const data = {
-                user: userData,
-                token: user.token,
-              };
-              return respondOk(res, { success: true, data: data });
-            });
-          })
-          .catch((reason) => {
-            respondError(res, { success: false, reason: reason });
-          });
-      });
-    }
-  )(req, res, next);
+  const { username, password } = body;
+
+  return userRepository
+    .findOneByOrFail({ username: username, password: password })
+    .then((user) => {
+      user.token = generateToken(user);
+
+      // Update token in database
+      const updateUserToken = userRepository
+        .update(user.id, user)
+        .then((value) => {
+          const data = {
+            user: {
+              id: user.id,
+              name: user.username,
+              email: user.email,
+            },
+            token: user.token,
+          };
+
+          res.setHeader("Authorization", user.token);
+          return respondOk(res, { success: true, data: data });
+        })
+        .catch((reason) => {
+          return respondError(res, { success: false, reason: reason });
+        });
+    })
+    .catch((reason) =>
+      respondError(res, {
+        success: false,
+        reason: "Invalid username or password",
+      })
+    );
 });
 
 export { router as userRouter };

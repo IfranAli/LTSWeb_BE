@@ -6,7 +6,6 @@ import * as Process from "process";
 import { tasksRouter } from "./tasks/tasks.router";
 import * as dotenv from "dotenv";
 import { userRouter } from "./user/user.router";
-import session, { SessionOptions } from "express-session";
 import { financeRouter } from "./finance/finance.router";
 import { FinanceService } from "./finance/finance.service";
 import { UserService } from "./user/user.service";
@@ -15,6 +14,11 @@ import { TasksService } from "./tasks/task.service";
 import { passport } from "./passport-config";
 import { DataSource } from "typeorm";
 import { User } from "./typeorm/entities/User";
+import { Task } from "./typeorm/entities/Task";
+import { Finance } from "./typeorm/entities/Finance";
+import { Project } from "./typeorm/entities/Project";
+import { Category } from "./typeorm/entities/Category";
+import { Account } from "./typeorm/entities/Account";
 
 if (process.env && process.env.NODE_ENV == "dev") {
   dotenv.config({ path: ".env.development" });
@@ -23,16 +27,6 @@ if (process.env && process.env.NODE_ENV == "dev") {
 }
 
 const ONE_DAY = 24 * 60 * 60 * 1000; // 24 hours
-
-const sessionOptions: SessionOptions = {
-  secret: Process.env.SESSION_SECRET!,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: false,
-    maxAge: ONE_DAY,
-  },
-};
 
 const corsOptions: CorsOptions = {
   origin: Process.env.ORIGIN,
@@ -48,7 +42,7 @@ export const AppDataSource = new DataSource({
   username: "ltsweb",
   password: "LD_B_WeB@",
   database: "test",
-  entities: [User],
+  entities: [User, Project, Task, Account, Finance, Category],
   synchronize: true,
   logging: false,
 });
@@ -70,9 +64,6 @@ export const services = async (req: any, res: any, next: any) => {
 };
 
 app.set("trust proxy", 1);
-app.use(session(sessionOptions));
-app.use(passport.initialize());
-// app.use(passport.session())
 app.use(cors(corsOptions));
 app.use(helmet());
 app.use(express.json());
