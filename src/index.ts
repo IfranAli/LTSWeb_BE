@@ -19,6 +19,8 @@ import { Finance } from "./typeorm/entities/Finance";
 import { Project } from "./typeorm/entities/Project";
 import { Category } from "./typeorm/entities/Category";
 import { Account } from "./typeorm/entities/Account";
+import { calendarRouter } from "./calendar/calendar.router";
+import { CalendarEvent } from "./typeorm/entities/CalendarEvent";
 
 if (process.env && process.env.NODE_ENV == "dev") {
   dotenv.config({ path: ".env.development" });
@@ -39,10 +41,10 @@ export const AppDataSource = new DataSource({
   type: "mariadb",
   host: "localhost",
   port: 3306,
-  username: "ltsweb",
-  password: "LD_B_WeB@",
+  username: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
   database: "test",
-  entities: [User, Project, Task, Account, Finance, Category],
+  entities: [User, Project, Task, Account, Finance, Category, CalendarEvent],
   synchronize: true,
   logging: false,
 });
@@ -72,6 +74,7 @@ app.use("/api/projects", services, projectsRouter);
 app.use("/api/tasks", services, tasksRouter);
 app.use("/api/user", services, userRouter);
 app.use("/api/finance", services, financeRouter);
+app.use("/api/calendar", services, calendarRouter);
 
 app.listen(Process.env.NODE_PORT, () => {
   AppDataSource.initialize()

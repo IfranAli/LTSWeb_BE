@@ -7,6 +7,7 @@ import {
 } from "typeorm";
 import { Account } from "./Account";
 import { Project } from "./Project";
+import { CalendarEvent } from "./CalendarEvent";
 
 @Entity()
 export class User {
@@ -33,4 +34,7 @@ export class User {
 
   @OneToMany(() => Project, (project) => project.userId)
   projects!: Project[];
+  
+  @OneToMany(() => CalendarEvent, (calendarEvent) => calendarEvent.userId)
+  calendarEvents!: CalendarEvent[];
 }

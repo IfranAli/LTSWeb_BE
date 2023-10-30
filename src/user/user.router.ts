@@ -1,16 +1,10 @@
 import express, { NextFunction, Request, Response } from "express";
-import {
-  isValidUser,
-  UserDatabaseModel,
-  UserModel,
-  UserModelPublic,
-} from "./user.interface";
+import { UserModelPublic } from "./user.interface";
 import {
   respondError,
   respondOk,
   respondUnauthorized,
 } from "../generic/router.util";
-import { getToken, passport } from "../passport-config";
 import { User } from "../typeorm/entities/User";
 import { AppDataSource } from "../index";
 
@@ -107,22 +101,32 @@ router.post("/", async (req: Request, res: Response) => {
     });
 });
 
-router.post("/logout", function (req: Request, res: Response, next) {
-  // Remove token from database
-  const userRepository = AppDataSource.getRepository(User);
+router.post(
+  "/logout",
+  isAuthenticated,
+  function (req: Request, res: Response, next) {
+    const token = req.headers.authorization ?? null;
 
-  userRepository
-    .findOneByOrFail({ token: req.body.token })
-    .then((value) => {
-      value.token = "";
-      userRepository.save(value);
+    if (!token) {
+      return respondError(res, { success: false, reason: "No token provided" });
+    }
 
-      return respondOk(res, { success: true });
-    })
-    .catch((reason) => {
-      return respondError(res, { success: false, reason: reason });
-    });
-});
+    // Remove token from database
+    const userRepository = AppDataSource.getRepository(User);
+
+    userRepository
+      .findOneByOrFail({ token: token })
+      .then((value) => {
+        value.token = "";
+        userRepository.save(value);
+
+        return respondOk(res, { success: true });
+      })
+      .catch((reason) => {
+        return respondError(res, { success: false, reason: reason });
+      });
+  }
+);
 
 const getUserInformation = async (
   req: Request,
