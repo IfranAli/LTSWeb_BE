@@ -18,6 +18,9 @@ export class CalendarEvent {
   @Column()
   time?: string;
 
+  @Column()
+  color?: string;
+
   @ManyToOne(() => User, (user) => user.calendarEvents)
   user!: User;
 }

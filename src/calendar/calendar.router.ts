@@ -4,7 +4,7 @@ import { isAuthenticated } from "../user/user.router";
 import { AppDataSource } from "..";
 import { CalendarEvent } from "../typeorm/entities/CalendarEvent";
 import { CalendarEventViewModel } from "./calendar.models";
-import { dateToString } from "../finance/finance.util";
+import { dateToString, isValidDateObject } from "../finance/finance.util";
 
 const router = express.Router();
 
@@ -14,6 +14,7 @@ const toViewModel = (entity: CalendarEvent) => {
     title: entity.title,
     date: entity.date ? dateToString(entity.date) : "",
     time: entity.time,
+    color: entity.color,
   };
 
   return r;
@@ -23,9 +24,24 @@ router.get(
   "/",
   isAuthenticated,
   (req: Request, res: Response, next: NextFunction) => {
+    const from = new Date((req.query.from as string) ?? "");
+    const to = new Date((req.query.to as string) ?? "");
+
+    const dateRangeIsValid = isValidDateObject(from) && isValidDateObject(to);
+    if (!dateRangeIsValid) {
+      respondError(res, "Invalid date range");
+    }
+
     const calendarRepo = AppDataSource.getRepository(CalendarEvent);
-    calendarRepo
-      .findBy({ userId: req.userData?.id })
+
+    const events = calendarRepo
+      .createQueryBuilder()
+      .where("userId = :userId", { userId: 1 })
+      .andWhere("date >= :startDate", { startDate: from })
+      .andWhere("date <= :endDate", { endDate: to })
+      .getMany();
+
+    events
       .then((value) => {
         const eventsVM = value.map((v) => toViewModel(v));
         respondOk(res, eventsVM);
@@ -51,6 +67,7 @@ router.post(
     eventEntity.title = body.title;
     eventEntity.date = body.date;
     eventEntity.time = body.time;
+    eventEntity.color = body.color;
     eventEntity.userId = userId;
 
     calendarRepo
@@ -79,6 +96,7 @@ router.put(
         entity.title = body.title;
         entity.date = body.date;
         entity.time = body.time;
+        entity.color = body.color;
 
         return calendarRepo.save(entity).then((value) => {
           return calendarRepo
