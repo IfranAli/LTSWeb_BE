@@ -1,21 +1,164 @@
 import { dateToString, getFinanceSummary } from "./finance.util";
 import { Finance } from "../typeorm/entities/Finance";
 import { Category } from "../typeorm/entities/Category";
-import { AppDataSource } from "../typeorm/data-source";
-import {
-  And,
-  FindOperator,
-  LessThan,
-  LessThanOrEqual,
-  MoreThan,
-  MoreThanOrEqual,
-  ValueTransformer,
-} from "typeorm";
+import { And, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
 import { FinanceModel } from "./finance.interface";
+import { Account } from "../typeorm/entities/Account";
 
 export class FinanceService {
-  private financeRepository = AppDataSource.getRepository(Finance);
-  private categoryRepository = AppDataSource.getRepository(Category);
+  constructor(
+    private accountRepository: Repository<Account>,
+    private financeRepository: Repository<Finance>,
+    private categoryRepository: Repository<Category>
+  ) {}
+
+  //#region Account
+  async getAccountForUser(userId: number): Promise<Account> {
+    try {
+      const account = await this.accountRepository.findOneOrFail({
+        where: { userId: userId },
+      });
+      return account;
+    } catch (error) {
+      console.error("Error in getAccountForUser: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
+
+  //#endregion
+
+  //#region Finance
+  async getAllFinancesForAccount(accountId: number): Promise<Finance[]> {
+    try {
+      const finances = await this.financeRepository.findBy({
+        accountId: accountId,
+      });
+      return finances;
+    } catch (error) {
+      console.error("Error in getAllFinancesForAccount: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
+
+  async createFinanceForAccount(
+    accountId: number,
+    data: Partial<Finance>
+  ): Promise<Finance> {
+    try {
+      const account = await this.getAccountForUser(accountId);
+
+      const params: Partial<Finance> = {
+        accountId: accountId,
+        amount: data.amount ?? 0,
+        date: data.date ?? new Date(),
+        categoryType: data.categoryType ?? 0,
+        name: data.name ?? "",
+        account: account,
+      };
+
+      const finance = await this.financeRepository.save(params);
+      return finance;
+    } catch (error) {
+      console.error("Error in createFinanceForAccount: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
+
+  async deleteFinanceById(id: number): Promise<void> {
+    try {
+      await this.financeRepository.delete(id);
+    } catch (error) {
+      console.error("Error in deleteFinanceById: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
+
+  async getFinanceById(id: number): Promise<Finance> {
+    try {
+      const finance = await this.financeRepository.findOneOrFail({
+        where: { id },
+      });
+      return finance;
+    } catch (error) {
+      console.error("Error in getFinanceById: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
+
+  async updateFinanceById(
+    id: number,
+    data: Partial<Finance>
+  ): Promise<Finance> {
+    try {
+      const finance = await this.getFinanceById(id);
+
+      if (!finance) {
+        throw new Error("Finance not found");
+      }
+
+      Object.assign(finance, data);
+      return this.financeRepository.save(finance);
+    } catch (error) {
+      console.error("Error in updateFinance: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
+
+  //#endregion
+
+  //#region Category
+
+  async getCategories(): Promise<Category[]> {
+    try {
+      const categories = await this.categoryRepository.find();
+      return categories;
+    } catch (error) {
+      console.error("Error in getCategories: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
+
+  async getCategoryById(id: number): Promise<Category> {
+    try {
+      const category = await this.categoryRepository.findOneOrFail({
+        where: { id },
+      });
+      return category;
+    } catch (error) {
+      console.error("Error in getCategoryById: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
+
+  async createCategory(data: Partial<Category>): Promise<Category> {
+    try {
+      const type = data.type ?? "";
+
+      if (type.length === 0) {
+        throw new Error("Category type cannot be empty");
+      }
+
+      const existingCategory = await this.categoryRepository.findOne({
+        where: { type: data.type },
+      });
+
+      if (existingCategory) {
+        throw new Error("Category already exists");
+      }
+
+      const params: Partial<Category> = {
+        type: data.type ?? "",
+        colour: data.colour ?? "",
+      };
+
+      return await this.categoryRepository.save(params);
+    } catch (error) {
+      console.error("Error in createCategory: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
+
+  //#endregion
 
   // public getAccountsByUserId = (userId: number): Promise<number[]> => {
   //   const values = [userId];
@@ -109,11 +252,6 @@ export class FinanceService {
   //   return result;
   // };
 
-  public async getCategories(): Promise<Category[]> {
-    const categories = await this.categoryRepository.find();
-    return categories;
-  }
-
   public async getSummary(accountId: number, from: Date, to: Date) {
     // get finances by account id
     const finances: Finance[] = await this.financeRepository.find({
@@ -122,14 +260,14 @@ export class FinanceService {
         date: And(LessThanOrEqual(to), MoreThanOrEqual(from)),
       },
     });
-    
+
     const financeModels: FinanceModel[] = finances.map((f) => {
       return {
         ...f,
         date: dateToString(f.date),
         amount: f.amount,
       };
-    })
+    });
 
     const categories = await this.getCategories();
     const summary = getFinanceSummary(financeModels, categories);
@@ -165,5 +303,3 @@ export class FinanceService {
   //   });
   // }
 }
-
-export const financeService = new FinanceService();
