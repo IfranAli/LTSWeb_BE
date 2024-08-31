@@ -2,11 +2,11 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  PrimaryColumn,
-  ManyToMany,
   ManyToOne,
+  OneToMany,
 } from "typeorm";
 import { User } from "./User";
+import { Finance } from "./Finance";
 
 @Entity()
 export class Account {
@@ -21,4 +21,7 @@ export class Account {
 
   @ManyToOne(() => User, (user) => user.accounts)
   user!: User;
+
+  @OneToMany(() => Finance, (finance) => finance.accountId)
+  finances!: Finance[];
 }

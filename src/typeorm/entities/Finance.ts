@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Account } from "./Account";
 
 @Entity()
 export class Finance {
@@ -19,4 +20,7 @@ export class Finance {
 
   @Column()
   categoryType!: number;
+
+  @ManyToOne(() => Account, (account) => account.id)
+  account!: Account;
 }

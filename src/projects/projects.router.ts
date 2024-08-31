@@ -1,10 +1,10 @@
 import express, { NextFunction, Request, Response } from "express";
 import { respondError, respondOk } from "../generic/router.util";
-import { ProjectModel } from "./project.interface";
 import { isAuthenticated } from "../user/user.router";
 import { ResponseMessage } from "../generic/ResponseMessage.interface";
-import { AppDataSource } from "..";
 import { Project } from "../typeorm/entities/Project";
+import { Task } from "../typeorm/entities/Task";
+import { AppDataSource } from "../typeorm/data-source";
 
 const router = express.Router();
 
@@ -28,10 +28,25 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     const body = req.body;
 
-    req.services.projectService
-      .create(body)
-      .then((value) => respondOk(res, value))
-      .catch((err) => respondError(res, err));
+    const projectRepository = AppDataSource.getRepository(Project);
+
+    const newProject = projectRepository.create({
+      title: body.title,
+      description: body.description,
+      colour: body.colour,
+      priority: body.priority,
+      code: body.code,
+      enabled: body.enabled,
+      userId: req.userData?.id,
+    });
+
+    projectRepository.save(newProject).then((value) => {
+      return projectRepository
+        .findOneOrFail({
+          where: { id: value.id },
+        })
+        .then((value) => respondOk(res, value));
+    });
   }
 );
 
@@ -41,19 +56,16 @@ router.get(
   isAuthenticated,
   async (req: Request, res: Response, next: NextFunction) => {
     const id: number = parseInt(req.params.id, 10);
-    req.services.projectService
-      .find(id)
-      .then(async (resultArray) => {
-        const project = resultArray.shift()!;
-        let projectWithTasks: Partial<ProjectModel> = {
-          ...project,
-          tasks: await req.services.projectService.getTasksByProjectID(
-            project.id
-          ),
-        };
-        return respondOk(res, projectWithTasks);
+
+    const projectRepository = AppDataSource.getRepository(Project);
+    projectRepository
+      .findOneOrFail({
+        where: { id: id },
+        relations: ["tasks"],
       })
-      .catch((err) => respondError(res, err));
+      .then((project) => {
+        return respondOk(res, project.tasks);
+      });
   }
 );
 
@@ -65,10 +77,27 @@ router.put(
     const body = req.body;
     body.id = parseInt(req.params.id, 10);
 
-    req.services.projectService
-      .update(body)
-      .then((value) => respondOk(res, value))
-      .catch((err) => respondError(res, err));
+    const projectRepository = AppDataSource.getRepository(Project);
+    projectRepository
+      .findOneOrFail({
+        where: { id: body.id },
+      })
+      .then((project) => {
+        project.title = body.name;
+        project.description = body.description;
+        project.colour = body.colour;
+        project.priority = body.priority;
+        project.code = body.code;
+        project.enabled = body.enabled;
+
+        projectRepository.save(project).then((value) => {
+          return projectRepository
+            .findOneOrFail({
+              where: { id: value.id },
+            })
+            .then((value) => respondOk(res, value));
+        });
+      });
   }
 );
 
@@ -80,10 +109,30 @@ router.post(
     const body = req.body;
     const id: number = parseInt(req.params.id, 10);
 
-    req.services.taskService
-      .create(body)
-      .then((value) => respondOk(res, value))
-      .catch((err) => respondError(res, err));
+    const projectRepository = AppDataSource.getRepository(Project);
+    projectRepository
+      .findOneOrFail({
+        where: { id: id },
+      })
+      .then((project) => {
+        const taskRepository = AppDataSource.getRepository(Task);
+
+        const newTask = taskRepository.create({
+          name: body.name,
+          content: body.content,
+          priority: body.priority,
+          projectId: project.id,
+          state: 0,
+        });
+
+        taskRepository.save(newTask).then((value) => {
+          return taskRepository
+            .findOneOrFail({
+              where: { id: value.id },
+            })
+            .then((value) => respondOk(res, value));
+        });
+      });
   }
 );
 
@@ -91,17 +140,19 @@ router.post(
 router.delete("/:id", isAuthenticated, async (req, res, next) => {
   const id: number = parseInt(req.params.id, 10);
 
-  req.services.projectService
-    .delete(id)
-    .then((_) => {
-      const responseMessage: ResponseMessage = {
-        success: true,
-        message: "",
-      };
-      respondOk(res, responseMessage);
+  const projectRepository = AppDataSource.getRepository(Project);
+  projectRepository
+    .findOneOrFail({
+      where: { id: id },
     })
-    .catch((err) => {
-      respondError(res, err);
+    .then((project) => {
+      projectRepository.remove(project).then(() => {
+        const responseMessage: ResponseMessage = {
+          message: "Project deleted",
+          success: true,
+        };
+        return respondOk(res, responseMessage);
+      });
     });
 });
 
@@ -111,10 +162,16 @@ router.get(
   isAuthenticated,
   async (req: Request, res: Response, next: NextFunction) => {
     const id: number = parseInt(req.params.id, 10);
-    req.services.projectService
-      .getTasksByProjectID(id)
-      .then((value) => respondOk(res, value))
-      .catch((err) => respondError(res, err));
+
+    const projectRepository = AppDataSource.getRepository(Project);
+    projectRepository
+      .findOneOrFail({
+        where: { id: id },
+        relations: ["tasks"],
+      })
+      .then((project) => {
+        return respondOk(res, project.tasks);
+      });
   }
 );
 

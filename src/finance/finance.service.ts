@@ -1,152 +1,169 @@
-import {CrudService} from "../generic/crud.service";
+import { dateToString, getFinanceSummary } from "./finance.util";
+import { Finance } from "../typeorm/entities/Finance";
+import { Category } from "../typeorm/entities/Category";
+import { AppDataSource } from "../typeorm/data-source";
 import {
-    FinanceCategoryMatchResult,
-    FinanceCategoryModel,
-    FinanceDatabaseModel,
-    FinanceModel
-} from "./finance.interface";
-import {Pool} from "mariadb";
-import {dateToString} from "./finance.util";
+  And,
+  FindOperator,
+  LessThan,
+  LessThanOrEqual,
+  MoreThan,
+  MoreThanOrEqual,
+  ValueTransformer,
+} from "typeorm";
+import { FinanceModel } from "./finance.interface";
 
-const safeFields: Array<keyof FinanceModel> = [
-    "id",
-    "accountId",
-    "name",
-    "date",
-    "amount",
-    "categoryType",
-];
+export class FinanceService {
+  private financeRepository = AppDataSource.getRepository(Finance);
+  private categoryRepository = AppDataSource.getRepository(Category);
 
-export class FinanceService extends CrudService<FinanceModel> {
-    constructor(pool: Pool) {
-        super(pool, 'Finances', safeFields);
-    }
+  // public getAccountsByUserId = (userId: number): Promise<number[]> => {
+  //   const values = [userId];
 
-    public getAccountsByUserId = (userId: number): Promise<number[]> => {
-        const values = [
-            userId,
-        ]
+  //   const query = `
+  //           select id
+  //           from Accounts
+  //           where userId = (?);
+  //       `;
 
-        const query = `
-            select id
-            from Accounts
-            where userId = (?);
-        `
+  //   return this.runQuery(query, values).then((rows: []) => {
+  //     return rows.map((row: any) => {
+  //       return row.id;
+  //     });
+  //   });
+  // };
 
-        return this.runQuery(query, values).then((rows: []) => {
-            return rows.map((row: any) => {
-                return row.id;
-            });
-        })
-    }
+  // public findCategoryByType = (
+  //   type: string
+  // ): Promise<FinanceCategoryModel[]> => {
+  //   const values = [["%", type, "%"].join("")];
 
-    public findCategoryByType = (type: string): Promise<FinanceCategoryModel[]> => {
-        const values = [
-            ['%', type, '%'].join(''),
-        ]
+  //   const query = `
+  //           select *
+  //           from Category
+  //           where Category.type like (?)
+  //           limit 10;
+  //       `;
 
-        const query = `
-            select *
-            from Category
-            where Category.type like (?)
-            limit 10;
-        `
+  //   return this.runQuery(query, values);
+  // };
 
-        return this.runQuery(query, values)
-    }
+  // public findAllFinancesOfCategory = async (
+  //   accountId: number,
+  //   type: string
+  // ): Promise<FinanceDatabaseModel[]> => {
+  //   const r = await this.findCategoryByType("Unknown");
+  //   const categoryType = r.pop()?.type ?? null;
 
-    public findAllFinancesOfCategory = async (accountId: number, type: string): Promise<FinanceDatabaseModel[]> => {
-        const r = await this.findCategoryByType('Unknown')
-        const categoryType = r.pop()?.type ?? null;
+  //   if (!categoryType) {
+  //     throw new Error(`Category of type ${type} not found.`);
+  //   }
 
-        if (!categoryType) {
-            throw new Error(`Category of type ${type} not found.`);
-        }
+  //   const category = 0;
+  //   const values = [accountId, category];
 
-        const category = 0;
-        const values = [
-            accountId,
-            category,
-        ]
+  //   const query = `
+  //           select *
+  //           from Finances as F
+  //           where F.accountId = (?)
+  //             and F.categoryType = (?);
+  //       `;
 
-        const query = `
-            select *
-            from Finances as F
-            where F.accountId = (?)
-              and F.categoryType = (?);
-        `
+  //   const result = this.runQuery(query, values);
 
-        const result = this.runQuery(query, values)
+  //   return result;
+  // };
 
-        return result
+  // public matchCategory = (
+  //   accountId: number,
+  //   name: string
+  // ): Promise<FinanceCategoryMatchResult[]> => {
+  //   const values = [accountId, name.concat("%")];
 
-    }
+  //   const query = `
+  //           select C.*, count(ltswebdb.Finances.categoryType) as matches
+  //           from ltswebdb.Finances
+  //                    join Category C on Finances.categoryType = C.id
+  //           where Finances.accountId = (?)
+  //             and Finances.categoryType != 0
+  //             and name like (?)
+  //           group by categoryType
+  //           order by matches DESC
+  //           limit 10
+  //       `;
 
-    public matchCategory = (accountId: number, name: string): Promise<FinanceCategoryMatchResult[]> => {
-        const values = [
-            accountId,
-            name.concat('%')
-        ]
+  //   const result = this.runQuery(query, values).then((rows: []) => {
+  //     return rows.map((row: any) => {
+  //       const model: FinanceCategoryMatchResult = {
+  //         category: {
+  //           type: row.type,
+  //           colour: row.colour,
+  //           id: row.id,
+  //         },
+  //         matches: parseInt(row.matches),
+  //       };
+  //       return model;
+  //     });
+  //   });
 
-        const query = `
-            select C.*, count(ltswebdb.Finances.categoryType) as matches
-            from ltswebdb.Finances
-                     join Category C on Finances.categoryType = C.id
-            where Finances.accountId = (?)
-              and Finances.categoryType != 0
-              and name like (?)
-            group by categoryType
-            order by matches DESC
-            limit 10
-        `
+  //   return result;
+  // };
 
-        const result = this.runQuery(query, values).then((rows: []) => {
-            return rows.map((row: any) => {
-                const model: FinanceCategoryMatchResult = {
-                    category: {
-                        type: row.type,
-                        colour: row.colour,
-                        id: row.id,
-                    },
-                    matches: parseInt(row.matches),
-                }
-                return model;
-            });
-        })
+  public async getCategories(): Promise<Category[]> {
+    const categories = await this.categoryRepository.find();
+    return categories;
+  }
 
-        return result;
-    }
+  public async getSummary(accountId: number, from: Date, to: Date) {
+    // get finances by account id
+    const finances: Finance[] = await this.financeRepository.find({
+      where: {
+        accountId: accountId,
+        date: And(LessThanOrEqual(to), MoreThanOrEqual(from)),
+      },
+    });
+    
+    const financeModels: FinanceModel[] = finances.map((f) => {
+      return {
+        ...f,
+        date: dateToString(f.date),
+        amount: f.amount,
+      };
+    })
 
-    public getCategories(): Promise<FinanceCategoryModel[]> {
-        return this.runQuery('select * from Category');
-    }
+    const categories = await this.getCategories();
+    const summary = getFinanceSummary(financeModels, categories);
 
-    public getFinancesByAccountID(accountId: number, from: Date, to: Date): Promise<FinanceModel[]> {
-        const values = [
-            accountId,
-            dateToString(from),
-            dateToString(to),
-        ]
+    return summary;
+  }
 
-        const query = `
-            select *
-            from ltswebdb.Finances
-            where Finances.accountId = (?)
-              and Finances.date >= (?)
-              and Finances.date <= (?)
-            order by Finances.date asc`
+  // public getFinancesByAccountID(
+  //   accountId: number,
+  //   from: Date,
+  //   to: Date
+  // ): Promise<FinanceModel[]> {
+  //   const values = [accountId, dateToString(from), dateToString(to)];
 
-        return this.runQuery(query, values).then((rows: []) => {
+  //   const query = `
+  //           select *
+  //           from ltswebdb.finance
+  //           where finance.accountId = (?)
+  //             and finance.date >= (?)
+  //             and finance.date <= (?)
+  //           order by finance.date asc`;
 
-            return rows.map((row: any) => {
-                const model: FinanceModel = {
-                    ...row,
-                    date: dateToString(new Date(row.date)),
-                    amount: (parseFloat(row.amount) ?? 0),
-                }
+  //   return this.runQuery(query, values).then((rows: []) => {
+  //     return rows.map((row: any) => {
+  //       const model: FinanceModel = {
+  //         ...row,
+  //         date: dateToString(new Date(row.date)),
+  //         amount: parseFloat(row.amount) ?? 0,
+  //       };
 
-                return model;
-            });
-        })
-    }
+  //       return model;
+  //     });
+  //   });
+  // }
 }
+
+export const financeService = new FinanceService();

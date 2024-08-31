@@ -1,10 +1,10 @@
 import express, { NextFunction, Request, Response } from "express";
 import { respondError, respondOk } from "../generic/router.util";
 import { isAuthenticated } from "../user/user.router";
-import { AppDataSource } from "..";
 import { CalendarEvent } from "../typeorm/entities/CalendarEvent";
 import { CalendarEventViewModel } from "./calendar.models";
 import { dateToString, isValidDateObject } from "../finance/finance.util";
+import { AppDataSource } from "../typeorm/data-source";
 
 const router = express.Router();
 

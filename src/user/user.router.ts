@@ -1,16 +1,16 @@
 import express, { NextFunction, Request, Response } from "express";
-import { UserModelPublic } from "./user.interface";
 import {
   respondError,
   respondOk,
   respondUnauthorized,
 } from "../generic/router.util";
 import { User } from "../typeorm/entities/User";
-import { AppDataSource } from "../index";
+import { AppDataSource } from "../typeorm/data-source";
+import { Account } from "../typeorm/entities/Account";
 
 const router = express.Router();
 
-export var isAuthenticated = async (
+export const isAuthenticated = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -38,33 +38,32 @@ export var isAuthenticated = async (
         }
       })
       .catch((reason) => {
-        respondUnauthorized(res, "Unauthorised");
+        respondUnauthorized(res, "Unauthorised: " + reason);
       });
   } else {
     respondUnauthorized(res, "Unauthorised - No token provided");
   }
 };
 
-router.get("/", isAuthenticated, (req: Request, res: Response) => {
-  const userID = req.userData?.id ?? null;
+// router.get("/", isAuthenticated, (req: Request, res: Response) => {
+//   const userID = req.userData?.id ?? null;
 
-  if (!userID) {
-    return respondError(res, "Could not authenticate user");
-  }
+//   if (!userID) {
+//     return respondError(res, "Could not authenticate user");
+//   }
 
-  return req.services.userService
-    .find(userID)
-    .then(async (value) => {
-      const userModel = await getUserInformation(req, value[0].token).then(
-        (value) => value
-      );
-      respondOk(res, userModel);
-    })
-    .catch((reason) => respondError(res, reason));
-});
+//   return req.services.userService
+//     .find(userID)
+//     .then(async (value) => {
+//       const userModel = await getUserInformation(req, value[0].token).then(
+//         (value) => value
+//       );
+//       respondOk(res, userModel);
+//     })
+//     .catch((reason) => respondError(res, reason));
+// });
 
 router.post("/", async (req: Request, res: Response) => {
-  const r = req.body;
   const user = new User();
 
   user.username = req.body.username;
@@ -128,30 +127,30 @@ router.post(
   }
 );
 
-const getUserInformation = async (
-  req: Request,
-  token: String
-): Promise<UserModelPublic> => {
-  return req.services.userService
-    .findUserByToken(token)
-    .then(async (user) => {
-      const accountId = await req.services.financeService
-        .getAccountsByUserId(user.id)
-        .then((value) => value[0] ?? null);
+// const getUserInformation = async (
+//   req: Request,
+//   token: String
+// ): Promise<UserModelPublic> => {
+//   return req.services.userService
+//     .findUserByToken(token)
+//     .then(async (user) => {
+//       const accountId = await req.services.financeService
+//         .getAccountsByUserId(user.id)
+//         .then((value) => value[0] ?? null);
 
-      const userModel: UserModelPublic = {
-        id: user.id,
-        name: user.username,
-        accountId: accountId,
-        token: user.token,
-      };
+//       const userModel: UserModelPublic = {
+//         id: user.id,
+//         name: user.username,
+//         accountId: accountId,
+//         token: user.token,
+//       };
 
-      return userModel;
-    })
-    .catch((reason) => {
-      return Promise.reject("Not implemented yet");
-    });
-};
+//       return userModel;
+//     })
+//     .catch((reason) => {
+//       return Promise.reject("Not implemented yet");
+//     });
+// };
 
 /**
  * Create token data.
@@ -193,14 +192,19 @@ router.post("/login", (req: Request, res: Response, next) => {
       user.token = generateToken(user);
 
       // Update token in database
-      const updateUserToken = userRepository
+      userRepository
         .update(user.id, user)
-        .then((value) => {
+        .then(async () => {
+          const accountRepository = AppDataSource.getRepository(Account);
+          const account = await accountRepository.findOneByOrFail({
+            userId: user.id,
+          });
           const data = {
             user: {
               id: user.id,
               name: user.username,
               email: user.email,
+              accountId: account.id,
             },
             token: user.token,
           };
@@ -215,7 +219,7 @@ router.post("/login", (req: Request, res: Response, next) => {
     .catch((reason) =>
       respondError(res, {
         success: false,
-        reason: "Invalid username or password",
+        reason: "Invalid username or password: " + reason,
       })
     );
 });
