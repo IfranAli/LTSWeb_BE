@@ -19,3 +19,15 @@ export const AppDataSource = new DataSource({
   synchronize: true,
   logging: false,
 });
+
+export const TestAppDataSource = new DataSource({
+  type: "mariadb",
+  host: process.env.DB_HOST,
+  port: 3306,
+  username: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: "ltswebdb_test",
+  entities: [User, Project, Task, Account, Finance, Category, CalendarEvent],
+  synchronize: true,
+  logging: false,
+});

@@ -1,15 +1,12 @@
-import { User } from "../typeorm/entities/User";
-import { UserService } from "../user/user.service";
+import { User } from "../src/typeorm/entities/User";
 import { TestHelper } from "./TestHelper";
 
-// jest.mock('./path/to/user.entity'); // Mock the User entity
-
 beforeAll(async () => {
-  await TestHelper.Instance.setuptTestDB();
+  await TestHelper.Instance.setupTestDB();
 });
 
 afterAll(() => {
-  TestHelper.Instance.teardown();
+  TestHelper.Instance.tearDown();
 });
 
 describe("UserService", () => {
