@@ -5,6 +5,8 @@ import { And, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
 import { FinanceModel } from "./finance.interface";
 import { Account } from "../typeorm/entities/Account";
 
+type CategoryMatch = Category & { matches: number };
+
 export class FinanceService {
   constructor(
     private accountRepository: Repository<Account>,
@@ -40,21 +42,86 @@ export class FinanceService {
     }
   }
 
+  // #region util
+  mapInputFinanceToDbModel = (
+    f: Partial<Finance>,
+    account: Account
+  ): Partial<Finance> => {
+    return {
+      amount: f.amount ?? 0,
+      date: f.date ?? new Date(),
+      categoryType: f.categoryType ?? 0,
+      name: f.name ?? "",
+      account: account,
+      accountId: account.id,
+    };
+  };
+
+  async populateFinanceWithCategory(
+    finance: Partial<Finance>
+  ): Promise<Partial<Finance>> {
+    if (
+      finance.accountId != null &&
+      finance.categoryType === 0 &&
+      finance.name &&
+      finance.name.length > 0
+    ) {
+      const matches = await this.findCategoryByFinanceName(
+        finance.accountId,
+        finance.name
+      );
+      const match = matches.sort((a, b) => b.matches - a.matches)[0];
+
+      if (match) {
+        finance.categoryType = match.id;
+      }
+    }
+
+    return finance;
+  }
+
+  //#endregion util
+
+  async createFinanceForAccountMany(
+    userId: number,
+    data: Partial<Finance>[]
+  ): Promise<Finance[]> {
+    try {
+      const account = await this.getAccountForUser(userId);
+
+      if (!account) {
+        throw new Error("Account not found");
+      }
+
+      const finances = await Promise.all(
+        data.map((d) =>
+          this.populateFinanceWithCategory(
+            this.mapInputFinanceToDbModel(d, account)
+          )
+        )
+      );
+
+      return await this.financeRepository.save(finances);
+    } catch (error) {
+      console.error("Error in createFinanceForAccountMany: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
+
   async createFinanceForAccount(
-    accountId: number,
+    userId: number,
     data: Partial<Finance>
   ): Promise<Finance> {
     try {
-      const account = await this.getAccountForUser(accountId);
+      const account = await this.getAccountForUser(userId);
 
-      const params: Partial<Finance> = {
-        accountId: accountId,
-        amount: data.amount ?? 0,
-        date: data.date ?? new Date(),
-        categoryType: data.categoryType ?? 0,
-        name: data.name ?? "",
-        account: account,
-      };
+      if (!account) {
+        throw new Error("Account not found");
+      }
+
+      const params = await this.populateFinanceWithCategory(
+        this.mapInputFinanceToDbModel(data, account)
+      );
 
       const finance = await this.financeRepository.save(params);
       return finance;
@@ -158,6 +225,29 @@ export class FinanceService {
     }
   }
 
+  public async findCategoryByFinanceName(
+    accountId: number,
+    name: string
+  ): Promise<CategoryMatch[]> {
+    const query = `
+    select C.id, C.type, C.colour, count(F.categoryType) as matches
+    from finance F
+    join category C on F.categoryType = C.id
+    where F.accountId = ? 
+      and F.categoryType != 0
+      and F.name like ? 
+    GROUP BY F.categoryType
+    limit 10;
+    `;
+
+    const matches = (await this.financeRepository.query(query, [
+      accountId,
+      `%${name}%`,
+    ])) as CategoryMatch[];
+
+    return matches;
+  }
+
   //#endregion
 
   // public getAccountsByUserId = (userId: number): Promise<number[]> => {
@@ -213,41 +303,6 @@ export class FinanceService {
   //       `;
 
   //   const result = this.runQuery(query, values);
-
-  //   return result;
-  // };
-
-  // public matchCategory = (
-  //   accountId: number,
-  //   name: string
-  // ): Promise<FinanceCategoryMatchResult[]> => {
-  //   const values = [accountId, name.concat("%")];
-
-  //   const query = `
-  //           select C.*, count(ltswebdb.Finances.categoryType) as matches
-  //           from ltswebdb.Finances
-  //                    join Category C on Finances.categoryType = C.id
-  //           where Finances.accountId = (?)
-  //             and Finances.categoryType != 0
-  //             and name like (?)
-  //           group by categoryType
-  //           order by matches DESC
-  //           limit 10
-  //       `;
-
-  //   const result = this.runQuery(query, values).then((rows: []) => {
-  //     return rows.map((row: any) => {
-  //       const model: FinanceCategoryMatchResult = {
-  //         category: {
-  //           type: row.type,
-  //           colour: row.colour,
-  //           id: row.id,
-  //         },
-  //         matches: parseInt(row.matches),
-  //       };
-  //       return model;
-  //     });
-  //   });
 
   //   return result;
   // };

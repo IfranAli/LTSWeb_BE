@@ -70,61 +70,39 @@ router.get(
 router.post("/", isAuthenticated, async (req: Request, res: Response) => {
   const body = req.body;
 
-  financeService
-    .createFinanceForAccount(req.userData?.id, body)
-    .then((value) => respondOk(res, value))
-    .catch((err) => respondError(res, err));
+  const isBodyArray = Array.isArray(body);
 
-  //     const financeModelsFn = async (
-  //       accum: Promise<Partial<FinanceDatabaseModel>[]>,
-  //       value: Partial<FinanceDatabaseModel>
-  //     ) => {
-  //       const arr = await Promise.resolve(accum);
-
-  //       if (
-  //         (!value.categoryType || value.categoryType == 0) &&
-  //         (value.name?.length ?? 0 > 0)
-  //       ) {
-  //         const matchCategory = await req.services.financeService.matchCategory(
-  //           0,
-  //           value.name ?? ""
-  //         );
-  //         const newCategory =
-  //           matchCategory.pop()?.category.id ?? value.categoryType;
-
-  //         if (newCategory != 0) {
-  //           return [...arr, { ...value, categoryType: newCategory }];
-  //         }
-  //       }
-
-  //       return [...arr, value];
-  //     };
-
-  //     if (Array.isArray(body)) {
-  //       const financeModels = await body.reduce<
-  //         Promise<Partial<FinanceDatabaseModel>[]>
-  //       >((a, b) => {
-  //         return financeModelsFn(a, b);
-  //       }, Promise.resolve([]));
-
-  //       return req.services.financeService
-  //         .createMany(financeModels as any)
-  //         .then((value) => respondOk(res, value))
-  //         .catch((err) => respondError(res, err));
-  //     } else {
-  //       const financeModels = await [body].reduce<
-  //         Promise<Partial<FinanceDatabaseModel>[]>
-  //       >((a, b) => {
-  //         return financeModelsFn(a, b);
-  //       }, Promise.resolve([]));
-
-  //       return req.services.financeService
-  //         .create(financeModels.pop() as any)
-  //         .then((value) => respondOk(res, value))
-  //         .catch((err) => respondError(res, err));
-  //     }
-  //   }
+  if (isBodyArray) {
+    financeService
+      .createFinanceForAccountMany(req.userData?.id, body)
+      .then((value) => respondOk(res, value))
+      .catch((err) => respondError(res, err));
+  } else {
+    financeService
+      .createFinanceForAccount(req.userData?.id, body)
+      .then((value) => respondOk(res, value))
+      .catch((err) => respondError(res, err));
+  }
 });
+
+// GET finance/category/match/:type
+router.get(
+  "/category/match/:type",
+  isAuthenticated,
+  async (req: Request, res: Response) => {
+    const type = req.params.type;
+
+    const r = await financeService.findCategoryByFinanceName(0, type);
+
+    const result = {
+      type: type,
+      "matches:": r,
+    };
+    return respondOk(res, {
+      result,
+    });
+  }
+);
 
 // GET finance/:id
 router.get("/:id", isAuthenticated, async (req: Request, res: Response) => {
