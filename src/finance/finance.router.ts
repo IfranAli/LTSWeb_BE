@@ -1,11 +1,16 @@
 import express, { Request, Response } from "express";
-import { respondError, respondOk } from "../generic/router.util";
+import {
+  respondError,
+  respondOk,
+  respondServerError,
+} from "../generic/router.util";
 import { isAuthenticated } from "../user/user.router";
 import { Finance } from "../typeorm/entities/Finance";
 import { FinanceService } from "./finance.service";
 import { AppDataSource } from "../typeorm/data-source";
 import { Category } from "../typeorm/entities/Category";
 import { Account } from "../typeorm/entities/Account";
+import { parseDate, parseNumber } from "../validation-util";
 
 const router = express.Router();
 
@@ -14,6 +19,46 @@ const financeService = new FinanceService(
   AppDataSource.getRepository(Finance),
   AppDataSource.getRepository(Category)
 );
+
+// GET finance/test
+router.get("/test", isAuthenticated, async (req: Request, res: Response) =>
+  financeService
+    .testQuery()
+    .then((value) => respondOk(res, value))
+    .catch((err) => respondError(res, err))
+);
+
+// #region /finance/search
+router.get("/search", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const queryAccountId = parseNumber(req.query.accountId);
+
+    const accounts = await financeService.getAccountByUserId(req.userData.id);
+    const accountId = accounts.find((a) => a.id === queryAccountId)?.id ?? -1;
+
+    if (accountId === -1) {
+      return respondError(res, new Error("Account not found"));
+    }
+
+    const queryDateFrom: Date = parseDate(req.query.from as string);
+    const queryDateTo: Date = parseDate(req.query.to as string);
+
+    if (queryDateFrom && queryDateTo) {
+      const result = await financeService.getFinancesBetweenDates(
+        accountId,
+        queryDateFrom,
+        queryDateTo
+      );
+      return respondOk(res, result);
+    }
+
+    return res.status(400).send("Invalid date range");
+  } catch (error) {
+    console.error("Error in /finance/search:", error);
+    return respondServerError(res, error);
+  }
+});
+// #endregion - /finance/search
 
 // GET finance/
 router.get("/", isAuthenticated, (req: Request, res: Response) => {
@@ -69,20 +114,11 @@ router.get(
 // CREATE finance/
 router.post("/", isAuthenticated, async (req: Request, res: Response) => {
   const body = req.body;
-
-  const isBodyArray = Array.isArray(body);
-
-  if (isBodyArray) {
-    financeService
-      .createFinanceForAccountMany(req.userData?.id, body)
-      .then((value) => respondOk(res, value))
-      .catch((err) => respondError(res, err));
-  } else {
-    financeService
-      .createFinanceForAccount(req.userData?.id, body)
-      .then((value) => respondOk(res, value))
-      .catch((err) => respondError(res, err));
-  }
+  const data = Array.isArray(body) ? body : [body];
+  financeService
+    .createFinanceForAccountMany(req.userData?.id, data)
+    .then((value) => respondOk(res, { body: value }))
+    .catch((err) => respondError(res, err));
 });
 
 // GET finance/category/match/:type
@@ -121,19 +157,6 @@ router.put("/:id", isAuthenticated, async (req: Request, res: Response) => {
 
   financeService
     .updateFinanceById(body.id, body)
-    .then((value) => {
-      respondOk(res, value);
-    })
-    .catch((err) => respondError(res, err));
-});
-
-// POST finance/:id
-router.post("/:id", isAuthenticated, async (req: Request, res: Response) => {
-  const body = req.body;
-  const id: number = parseInt(req.params.id, 10);
-
-  financeService
-    .createFinanceForAccount(id, body)
     .then((value) => {
       respondOk(res, value);
     })

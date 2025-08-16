@@ -21,7 +21,7 @@ const ONE_DAY = 24 * 60 * 60 * 1000; // 24 hours
 const corsOptions: CorsOptions = {
   origin(origin, callback) {
     const allowedOrigins = process.env.ORIGIN?.split(",") ?? [];
-    if (!origin || origin && allowedOrigins?.includes(origin)) {
+    if (!origin || (origin && allowedOrigins?.includes(origin))) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
@@ -51,6 +51,11 @@ const startServer = async () => {
   app.use("/api/tasks", tasksRouter);
   app.use("/api/finance", financeRouter);
   app.use("/api/calendar", calendarRouter);
+
+  const version = 0.1;
+  app.get("/api/version", (req, res) => {
+    res.json({ version: version });
+  });
 
   app.listen(process.env.NODE_PORT, () => {
     console.log(`Listening on port ${process.env.NODE_PORT}`);

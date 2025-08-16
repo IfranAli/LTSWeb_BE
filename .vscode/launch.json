@@ -30,7 +30,7 @@
                 "--runTestsByPath",
                 "${jest.testFile}"
             ],
-            "cwd": "/Users/ilaluvox/Code/01_LTSWeb-Backend-ts-ng",
+            "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
             "disableOptimisticBPs": true,

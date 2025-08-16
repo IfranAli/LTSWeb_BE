@@ -1,11 +1,18 @@
-import { dateToString, getFinanceSummary } from "./finance.util";
+import { getFinanceSummary } from "./finance.util";
 import { Finance } from "../typeorm/entities/Finance";
 import { Category } from "../typeorm/entities/Category";
 import { And, LessThanOrEqual, MoreThanOrEqual, Repository } from "typeorm";
-import { FinanceModel } from "./finance.interface";
 import { Account } from "../typeorm/entities/Account";
+import { parseNumber } from "../validation-util";
+import { FinanceModel } from "./finance.interface";
+import { runRawSqlQuery } from "../db/db-util";
 
 type CategoryMatch = Category & { matches: number };
+
+export const parseStrToFloat = (str: string): number => {
+  const result = parseFloat(str);
+  return isNaN(result) ? 0 : result;
+};
 
 export class FinanceService {
   constructor(
@@ -14,15 +21,37 @@ export class FinanceService {
     private categoryRepository: Repository<Category>
   ) {}
 
+  // Test function
+  public async testQuery(): Promise<FinanceModel[]> {
+    const results = await runRawSqlQuery<FinanceModel, [number]>(
+      "SELECT * FROM finance WHERE accountId = ?",
+      [0]
+    );
+    return results;
+  }
+
   //#region Account
-  async getAccountForUser(userId: number): Promise<Account> {
+  async getAccountByUserId(userId: number): Promise<Account[]> {
     try {
-      const account = await this.accountRepository.findOneOrFail({
-        where: { userId: userId },
+      const accounts = await this.accountRepository.findBy({
+        userId: userId,
       });
-      return account;
+
+      return accounts;
     } catch (error) {
       console.error("Error in getAccountForUser: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
+
+  async createAccountForUser(userId: number): Promise<Account> {
+    try {
+      const account = new Account();
+      account.userId = userId;
+      account.total = 0;
+      return await this.accountRepository.save(account);
+    } catch (error) {
+      console.error("Error in createAccountForUser: ", error);
       return Promise.reject(error as Error);
     }
   }
@@ -87,7 +116,10 @@ export class FinanceService {
     data: Partial<Finance>[]
   ): Promise<Finance[]> {
     try {
-      const account = await this.getAccountForUser(userId);
+      const accounts = await this.getAccountByUserId(userId);
+      const account = accounts[0];
+
+      console.debug("Creating finances for account:", account);
 
       if (!account) {
         throw new Error("Account not found");
@@ -108,29 +140,6 @@ export class FinanceService {
     }
   }
 
-  async createFinanceForAccount(
-    userId: number,
-    data: Partial<Finance>
-  ): Promise<Finance> {
-    try {
-      const account = await this.getAccountForUser(userId);
-
-      if (!account) {
-        throw new Error("Account not found");
-      }
-
-      const params = await this.populateFinanceWithCategory(
-        this.mapInputFinanceToDbModel(data, account)
-      );
-
-      const finance = await this.financeRepository.save(params);
-      return finance;
-    } catch (error) {
-      console.error("Error in createFinanceForAccount: ", error);
-      return Promise.reject(error as Error);
-    }
-  }
-
   async deleteFinanceById(id: number): Promise<void> {
     try {
       await this.financeRepository.delete(id);
@@ -140,8 +149,9 @@ export class FinanceService {
     }
   }
 
-  async getFinanceById(id: number): Promise<Finance> {
+  async getFinanceById(param_id: number): Promise<Finance> {
     try {
+      const id = parseNumber(param_id);
       const finance = await this.financeRepository.findOneOrFail({
         where: { id },
       });
@@ -250,76 +260,34 @@ export class FinanceService {
 
   //#endregion
 
-  // public getAccountsByUserId = (userId: number): Promise<number[]> => {
-  //   const values = [userId];
-
-  //   const query = `
-  //           select id
-  //           from Accounts
-  //           where userId = (?);
-  //       `;
-
-  //   return this.runQuery(query, values).then((rows: []) => {
-  //     return rows.map((row: any) => {
-  //       return row.id;
-  //     });
-  //   });
-  // };
-
-  // public findCategoryByType = (
-  //   type: string
-  // ): Promise<FinanceCategoryModel[]> => {
-  //   const values = [["%", type, "%"].join("")];
-
-  //   const query = `
-  //           select *
-  //           from Category
-  //           where Category.type like (?)
-  //           limit 10;
-  //       `;
-
-  //   return this.runQuery(query, values);
-  // };
-
-  // public findAllFinancesOfCategory = async (
-  //   accountId: number,
-  //   type: string
-  // ): Promise<FinanceDatabaseModel[]> => {
-  //   const r = await this.findCategoryByType("Unknown");
-  //   const categoryType = r.pop()?.type ?? null;
-
-  //   if (!categoryType) {
-  //     throw new Error(`Category of type ${type} not found.`);
-  //   }
-
-  //   const category = 0;
-  //   const values = [accountId, category];
-
-  //   const query = `
-  //           select *
-  //           from Finances as F
-  //           where F.accountId = (?)
-  //             and F.categoryType = (?);
-  //       `;
-
-  //   const result = this.runQuery(query, values);
-
-  //   return result;
-  // };
+  public async getFinancesBetweenDates(
+    accountId: number,
+    from: Date,
+    to: Date
+  ): Promise<Finance[]> {
+    try {
+      const finances = await this.financeRepository.find({
+        where: {
+          accountId: accountId,
+          date: And(LessThanOrEqual(to), MoreThanOrEqual(from)),
+        },
+      });
+      return finances;
+    } catch (error) {
+      console.error("Error in getFinancesBetweenDates: ", error);
+      return Promise.reject(error as Error);
+    }
+  }
 
   public async getSummary(accountId: number, from: Date, to: Date) {
     // get finances by account id
-    const finances: Finance[] = await this.financeRepository.find({
-      where: {
-        accountId: accountId,
-        date: And(LessThanOrEqual(to), MoreThanOrEqual(from)),
-      },
-    });
+    const finances = await this.getFinancesBetweenDates(accountId, from, to);
 
-    const financeModels: FinanceModel[] = finances.map((f) => {
+    const financeModels = finances.map((f) => {
       return {
         ...f,
-        date: dateToString(f.date),
+        // date: dateToString(f.date),
+        date: f.date,
         amount: f.amount,
       };
     });
@@ -329,32 +297,4 @@ export class FinanceService {
 
     return summary;
   }
-
-  // public getFinancesByAccountID(
-  //   accountId: number,
-  //   from: Date,
-  //   to: Date
-  // ): Promise<FinanceModel[]> {
-  //   const values = [accountId, dateToString(from), dateToString(to)];
-
-  //   const query = `
-  //           select *
-  //           from ltswebdb.finance
-  //           where finance.accountId = (?)
-  //             and finance.date >= (?)
-  //             and finance.date <= (?)
-  //           order by finance.date asc`;
-
-  //   return this.runQuery(query, values).then((rows: []) => {
-  //     return rows.map((row: any) => {
-  //       const model: FinanceModel = {
-  //         ...row,
-  //         date: dateToString(new Date(row.date)),
-  //         amount: parseFloat(row.amount) ?? 0,
-  //       };
-
-  //       return model;
-  //     });
-  //   });
-  // }
 }

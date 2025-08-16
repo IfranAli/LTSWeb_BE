@@ -12,10 +12,21 @@ export class Finance {
   @Column()
   name!: string;
 
-  @Column()
+  @Column({
+    type: "datetime",
+    default: () => "CURRENT_TIMESTAMP",
+  })
   date!: Date;
 
-  @Column()
+  @Column({
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+    type: "decimal",
+    precision: 10,
+    scale: 2,
+  })
   amount!: number;
 
   @Column()
